@@ -1,0 +1,87 @@
+Product Requirements Document (PRD)
+Project: MediCycle – Smart Medicine Donation & Redistribution Platform
+Version: 1.0
+Prepared For: College Capstone Project
+1. Executive Summary
+MediCycle is a web-based platform designed to reduce medicine waste by enabling users to donate unused, unexpired medicines. Every donated medicine is verified by an authorized pharmacy or NGO before it becomes available in a pooled inventory. Eligible patients can request verified medicines through the platform. The project focuses on safe redistribution instead of direct peer-to-peer resale.
+2. Problem Statement
+Many usable medicines are discarded after treatments end, while economically disadvantaged patients struggle to obtain essential medicines. Existing systems rarely support safe medicine redistribution through a verified workflow.
+3. Vision
+Build a secure, transparent and scalable platform that encourages medicine donation, minimizes waste, and supports affordable healthcare through verified redistribution.
+4. Objectives
+Reduce medicine wastage.
+Create a verified medicine donation workflow.
+Provide pooled inventory management.
+Allow eligible patients to request medicines.
+Maintain complete transparency through role-based workflows.
+5. Stakeholders
+Donors (Patients)
+Recipients (Patients)
+Pharmacies
+NGOs
+Administrators
+College Evaluators
+6. User Roles
+Donor
+Register, donate medicines, upload details, view donation status and history.
+Recipient
+Search medicines, request medicines, upload prescription when required, track requests.
+Pharmacy/NGO
+Verify donations, manage pooled inventory, approve recipient requests, distribute medicines.
+Admin
+Manage users, medicines, reports, verification records and platform settings.
+7. Functional Requirements
+Authentication
+Role-based login using JWT.
+Medicine Donation
+Upload medicine details, images, expiry date, quantity and prescription if required.
+Verification
+Approve or reject donated medicines after inspection.
+Medicine Pool
+Maintain inventory of approved medicines.
+Medicine Search
+Search by name/category/location.
+Medicine Request
+Eligible users request available medicines.
+Inventory
+Track available, reserved, distributed and expired stock.
+Notifications
+Donation status and request updates.
+Reports
+Donation and distribution statistics for admin.
+8. Non-Functional Requirements
+Responsive web application
+Secure authentication
+Response time below 2 seconds for common operations
+Scalable REST APIs
+Audit trail for approvals and rejections
+9. Workflow
+1. Donor uploads medicine.2. Pharmacy/NGO verifies medicine.3. Approved medicines enter pooled inventory.4. Recipient searches and requests medicine.5. Pharmacy/NGO approves request.6. Medicine is distributed.7. Inventory updates automatically.
+10. Database Tables
+Users
+Roles
+Medicines
+MedicineDonations
+VerificationRequests
+Inventory
+MedicineRequests
+Notifications
+AuditLogs
+11. Technology Stack
+Frontend: React + Tailwind CSSBackend: Spring BootDatabase: PostgreSQLAuthentication: JWTStorage: Cloudinary (optional)AI (Future): Gemini API / OCRDeployment: Vercel + Render
+12. Future Enhancements
+OCR for expiry date extraction
+Prescription OCR
+QR code verification
+NGO integration
+Government hospital integration
+Analytics dashboard
+Mobile application
+13. Assumptions & Legal Disclaimer
+This project is an educational prototype. Medicines are donated—not sold directly between users. Every donated medicine must be verified by an authorized pharmacy or NGO before redistribution. Actual deployment would require compliance with applicable pharmaceutical regulations and approvals.
+14. Success Metrics
+Number of medicine donations
+Approval rate
+Medicines successfully redistributed
+Reduction in medicine waste
+User satisfaction

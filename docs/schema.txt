@@ -1,0 +1,105 @@
+MediCycle - Backend Schema & Architecture Document
+Project: MediCycle – Smart Medicine Donation & Redistribution Platform
+Version: 1.0
+1. Backend Architecture
+Presentation Layer (Controllers)        ↓Business Layer (Services)        ↓Persistence Layer (Repositories)        ↓PostgreSQL Database
+2. Project Structure
+config
+controller
+dto/request
+dto/response
+entity
+enums
+exception
+mapper
+repository
+security
+service
+service/impl
+util
+3. Database Tables
+users
+id, name, email, phone, password, role_id, address, city, state, pincode, is_verified, created_at, updated_at
+roles
+id, role_name (DONOR, RECIPIENT, PHARMACY, ADMIN)
+medicines
+id, medicine_name, manufacturer, category, dosage, description, requires_prescription
+medicine_donations
+id, donor_id, medicine_id, quantity, batch_number, manufacture_date, expiry_date, condition, status, remarks, created_at
+medicine_images
+id, donation_id, image_url, image_type
+prescriptions
+id, donor_id, request_id, doctor_name, hospital_name, file_url, issued_date
+verification
+id, donation_id, verified_by, verification_date, result, remarks
+inventory
+id, medicine_id, available_quantity, reserved_quantity, distributed_quantity, expired_quantity, updated_at
+medicine_requests
+id, recipient_id, medicine_id, requested_quantity, prescription_id, status, approved_by, created_at
+notifications
+id, user_id, title, message, type, is_read, created_at
+audit_logs
+id, user_id, action, entity_name, entity_id, timestamp
+4. Entity Relationships
+Users (1) ---- (M) Medicine DonationsUsers (1) ---- (M) Medicine RequestsMedicines (1) ---- (M) Medicine DonationsMedicine Donations (1) ---- (M) Medicine ImagesMedicine Donations (1) ---- (1) VerificationMedicines (1) ---- (1) InventoryMedicine Requests (M) ---- (1) PrescriptionsUsers (1) ---- (M) Notifications
+5. Enumerations
+RoleType
+DONOR, RECIPIENT, PHARMACY, ADMIN
+DonationStatus
+PENDING, UNDER_REVIEW, APPROVED, REJECTED, DISTRIBUTED, EXPIRED
+RequestStatus
+PENDING, APPROVED, REJECTED, COMPLETED
+6. Repository Layer
+UserRepository
+RoleRepository
+MedicineRepository
+DonationRepository
+InventoryRepository
+VerificationRepository
+MedicineRequestRepository
+NotificationRepository
+AuditLogRepository
+7. Service Layer
+AuthService
+DonationService
+MedicineService
+InventoryService
+VerificationService
+MedicineRequestService
+NotificationService
+AdminService
+8. Controller Layer
+AuthController
+DonationController
+MedicineController
+InventoryController
+VerificationController
+RequestController
+NotificationController
+AdminController
+ProfileController
+9. API Modules
+/api/auth
+/api/users
+/api/medicines
+/api/donations
+/api/verification
+/api/inventory
+/api/requests
+/api/notifications
+/api/admin
+10. Security Flow
+Login → JWT Generation → Client stores token → Token sent with each request →JWT Filter → Spring Security → Role Authorization → Controller
+11. Recommended Dependencies
+Spring Web
+Spring Security
+Spring Data JPA
+PostgreSQL Driver
+Validation
+Lombok
+JWT (jjwt)
+MapStruct/ModelMapper
+Springdoc OpenAPI (Swagger)
+Cloudinary SDK
+JUnit 5
+Mockito

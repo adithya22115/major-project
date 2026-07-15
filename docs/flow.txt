@@ -1,0 +1,56 @@
+MediCycle - Website Flow Document
+Project: MediCycle – Smart Medicine Donation & Redistribution Platform
+Purpose: Defines the complete website navigation, user journeys, and module workflows.
+1. User Roles
+Donor (Patient)
+Recipient (Patient)
+Pharmacy / NGO
+Administrator
+2. Landing Page
+Navigation:• Home• About• How It Works• Medicines• FAQ• Contact• Login / RegisterHero Section:"Reduce Medicine Waste. Help Someone in Need."Primary Actions:• Donate Medicine• Find MedicinesAdditional Sections:• How It Works• Platform Statistics• Partner Pharmacies/NGOs• Footer
+3. Authentication Flow
+Home↓Login / Register↓Select Role↓Donor / Recipient / Pharmacy / Admin↓Role-specific Dashboard
+4. Donor Flow
+Dashboard↓Donate Medicine↓Enter Medicine Details↓Upload Images & Prescription (if applicable)↓Submit Donation↓Status: Pending Verification↓Approved / Rejected↓Approved medicines are added to the Medicine Pool
+5. Recipient Flow
+Dashboard↓Search Medicines↓View Medicine Details↓Submit Request↓Upload Prescription (if required)↓Request Review↓Approved↓Collect Medicine
+6. Pharmacy / NGO Flow
+Dashboard↓Pending Donations↓Review Donation↓Verify Expiry, Packaging & Details↓Approve / Reject↓Approved medicines added to Inventory↓Review Recipient Requests↓Approve Distribution↓Update Inventory
+7. Admin Flow
+Dashboard↓Manage Users↓Manage Medicines↓View Reports↓Manage Verification Records↓Platform Settings
+8. Navigation Menu by Role
+Donor
+Dashboard, Donate Medicine, My Donations, Notifications, Profile
+Recipient
+Dashboard, Medicine Pool, My Requests, Notifications, Profile
+Pharmacy
+Dashboard, Pending Donations, Inventory, Requests, Reports, Profile
+Admin
+Dashboard, Users, Medicines, Verification, Reports, Settings
+9. Core Workflows
+Donation Workflow:Donor → Submit Donation → Verification → Approved → Medicine PoolRequest Workflow:Recipient → Search → Request → Pharmacy Approval → DistributionInventory Workflow:Approved Donation → Inventory Updated → Distribution → Inventory ReducedNotification Workflow:Donation Submitted → Approved/Rejected → Request Approved → Ready for Collection
+10. Website Screen List
+Landing Page
+Login
+Register
+Donor Dashboard
+Donate Medicine
+Donation History
+Recipient Dashboard
+Medicine Pool
+Medicine Details
+Request Medicine
+Pharmacy Dashboard
+Pending Donations
+Verification
+Inventory
+Admin Dashboard
+Users
+Reports
+Settings
+Profile
+Notifications
+11. Overall System Flow
+Landing Page↓Login / Register↓Role-Based Dashboard↓Donation / Search / Verification↓Medicine Pool↓Request & Approval↓Distribution↓Inventory Updated
+12. UI Recommendation
+Use a common application layout after login with a shared top navigation and sidebar. Menu items should change dynamically based on the logged-in user's role to ensure consistency and reduce duplicated UI code.

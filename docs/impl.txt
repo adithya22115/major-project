@@ -1,0 +1,104 @@
+MediCycle - Implementation Plan
+Project: MediCycle – Smart Medicine Donation & Redistribution Platform
+Duration: 6 Weeks (College MVP)
+Methodology: Agile (Weekly Milestones)
+1. Project Phases
+Phase 1 - Planning (Week 1)
+Finalize PRD, TRD and Website Flow
+Prepare UI wireframes
+Design ER Diagram and database schema
+Set up GitHub repository
+Create React, Spring Boot and PostgreSQL projects
+Phase 2 - Authentication & Foundation (Week 2)
+Implement JWT authentication
+Role-based authorization
+User registration/login
+Common dashboard layout
+Swagger configuration
+Phase 3 - Medicine Donation Module (Week 3)
+Donation form
+Medicine image upload
+Prescription upload
+Donation history
+Donation status tracking
+Phase 4 - Verification & Inventory (Week 4)
+Pharmacy verification dashboard
+Approve/Reject donations
+Inventory updates
+Medicine pool listing
+Search and filters
+Phase 5 - Medicine Request Module (Week 5)
+Recipient dashboard
+Medicine request workflow
+Request approval
+Notifications
+Profile management
+Phase 6 - Testing & Deployment (Week 6)
+Bug fixing
+Unit and integration testing
+Deployment
+Documentation
+Final presentation preparation
+2. Team Responsibilities
+Member
+Responsibility
+Deliverables
+Member 1
+Backend
+Authentication, APIs, Security
+Member 2
+Frontend
+React UI, Dashboards
+Member 3
+Database
+Schema, JPA, Inventory
+Member 4
+Testing & Docs
+Testing, Deployment, Documentation
+3. Module Dependency
+Authentication    ↓Role Management    ↓Medicine Donation    ↓Verification    ↓Inventory    ↓Medicine Pool    ↓Medicine Request    ↓Notifications    ↓Reports
+4. Deliverables
+PRD
+TRD
+Website Flow
+UI/UX Brief
+Backend APIs
+Frontend Application
+Database
+Testing Report
+Final Report
+Presentation
+5. Acceptance Criteria
+Users can register and login.
+Donors can submit medicine donations.
+Pharmacy can verify donations.
+Approved medicines appear in the medicine pool.
+Recipients can request medicines.
+Inventory updates automatically.
+Admin can manage users and reports.
+6. Risks & Mitigation
+Risk
+Impact
+Mitigation
+Schedule delay
+High
+Deliver MVP first
+Integration issues
+Medium
+Integrate weekly
+Database changes
+Medium
+Freeze schema after Week 1
+UI inconsistency
+Low
+Use shared component library
+7. Final MVP Scope
+Authentication
+Role-based dashboards
+Medicine Donation
+Verification Workflow
+Medicine Pool
+Medicine Request
+Inventory Management
+Admin Dashboard
+Deployment

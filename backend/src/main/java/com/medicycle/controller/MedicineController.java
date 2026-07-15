@@ -1,0 +1,40 @@
+package com.medicycle.controller;
+
+import com.medicycle.dto.request.MedicineCreateRequest;
+import com.medicycle.dto.response.MedicineResponse;
+import com.medicycle.security.UserPrincipal;
+import com.medicycle.service.MedicineService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/medicines")
+@RequiredArgsConstructor
+public class MedicineController {
+
+    private final MedicineService medicineService;
+
+    @GetMapping
+    public ResponseEntity<List<MedicineResponse>> getAllMedicines() {
+        return ResponseEntity.ok(medicineService.getAllMedicines());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<MedicineResponse> getMedicine(@PathVariable Long id) {
+        return ResponseEntity.ok(medicineService.getMedicineById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<MedicineResponse> createMedicine(
+            @Valid @RequestBody MedicineCreateRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(medicineService.createMedicine(request, principal.getId()));
+    }
+}

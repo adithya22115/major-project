@@ -1,0 +1,46 @@
+# === OS files ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.iws
+*.iml
+*.ipr
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === Agent / AI files ===
+CLAUDE.md
+.agents/
+
+# === Environment variables ===
+.env
+.env.*
+!.env.example
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# === Backend (Spring Boot / Maven) ===
+backend/target/
+backend/uploads/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# === Frontend (Vite / Node) ===
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# === Workspace file ===
+*.code-workspace

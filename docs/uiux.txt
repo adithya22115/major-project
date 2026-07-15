@@ -1,0 +1,80 @@
+UI/UX Design Brief
+Project: MediCycle – Smart Medicine Donation & Redistribution Platform
+Purpose: Define the visual design, user experience, navigation, and interface standards for the application.
+1. Design Vision
+Create a clean, trustworthy, accessible healthcare platform that emphasizes medicine donation, verification, and redistribution. The interface should feel simple for patients while providing efficient dashboards for Pharmacy/NGO staff and Administrators.
+2. Design Principles
+Simple and intuitive navigation
+Accessibility-first (large touch targets, readable typography)
+Minimal steps for key tasks
+Consistent layouts and reusable components
+Responsive design for desktop, tablet, and mobile
+Clear feedback for every user action
+3. Target Users
+Medicine Donors
+Medicine Recipients
+Pharmacy/NGO Staff
+System Administrators
+4. Information Architecture
+Public:Home, About, How It Works, FAQ, Contact, Login/RegisterAuthenticated:Dashboard, Medicines, Donations, Requests, Notifications, ProfileRole-specific menus:Donor, Recipient, Pharmacy/NGO, Admin
+5. Visual Identity
+Primary Color: #2563EB (Blue)Secondary Color: #10B981 (Green)Accent: #F59E0B (Amber)Success: GreenWarning: OrangeError: RedBackground: White / Light GrayFont: Inter or PoppinsIcons: Lucide or Heroicons
+6. Component Library
+Buttons (Primary, Secondary, Danger)
+Cards
+Tables
+Search Bar
+Filter Panel
+Forms
+Date Picker
+Status Badges
+File Upload
+Notification Toasts
+Pagination
+7. Screen Specifications
+Landing Page
+Hero banner, CTA buttons, impact statistics, how it works, footer.
+Login/Register
+Role selection, validation, forgot password.
+Donor Dashboard
+Donation summary, recent donations, quick actions.
+Donate Medicine
+Medicine details form, image upload, prescription upload.
+Recipient Dashboard
+Medicine search, recommended medicines, request status.
+Medicine Pool
+Search, filters, medicine cards, availability.
+Pharmacy Dashboard
+Pending verifications, inventory, requests.
+Admin Dashboard
+KPIs, users, verification queue, reports.
+Profile
+Personal information and account settings.
+Notifications
+Donation and request updates.
+8. User Experience Flows
+Donor: Dashboard → Donate Medicine → Upload → Submit → Track StatusRecipient: Dashboard → Search Medicines → Request → Track RequestPharmacy: Dashboard → Verify Donations → Update Inventory → Approve RequestsAdmin: Dashboard → Manage Users → Reports → Platform Management
+9. Responsive Design
+Desktop-first layout
+Tablet optimized navigation
+Mobile-friendly forms
+Collapsible sidebar
+Responsive tables/cards
+10. Accessibility
+WCAG-inspired color contrast
+Keyboard navigation
+Meaningful labels
+Accessible form validation
+Alt text for uploaded images
+11. Microinteractions
+Loading indicators
+Success confirmation after submissions
+Animated status badges
+Hover effects on cards
+Progress indicator during uploads
+12. Future UI Enhancements
+Dark mode
+Multi-language support
+Interactive analytics
+QR scanner interface
+Mobile application

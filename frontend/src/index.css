@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+/* Tell Tailwind v4 to use class-based dark mode (reads .dark on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   DESIGN TOKENS - Light & Dark
+   Dark palette inspired by "Cinematic Lens" dark theme:
+   Background: #0f172a (slate-900)
+   Surface:    #1e293b (slate-800)
+   Surface2:   #334155 (slate-700)
+   Border:     #334155
+   Primary:    #3b82f6 (blue-500)
+   Text:       #f1f5f9 (slate-100)
+   Muted:      #94a3b8 (slate-400)
+   ============================================================ */
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: light dark;
+
+  /* Light mode tokens */
+  --color-bg-page:      #f8fafc;
+  --color-bg-surface:   #ffffff;
+  --color-bg-surface2:  #f1f5f9;
+  --color-border:       #e2e8f0;
+  --color-text-primary: #0f172a;
+  --color-text-muted:   #64748b;
+  --color-text-subtle:  #94a3b8;
+}
+
+.dark {
+  /* Dark mode tokens — no light colors anywhere */
+  --color-bg-page:      #0f172a;
+  --color-bg-surface:   #1e293b;
+  --color-bg-surface2:  #334155;
+  --color-border:       #334155;
+  --color-text-primary: #f1f5f9;
+  --color-text-muted:   #94a3b8;
+  --color-text-subtle:  #64748b;
+}
+
+/* Apply page background and text through custom properties */
+body {
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
+  @apply antialiased transition-colors duration-200;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-surface2);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-subtle);
+}
+
+/* ============================================================
+   UTILITY CLASSES using CSS tokens
+   ============================================================ */
+
+/* Page background */
+.bg-page { background-color: var(--color-bg-page); }
+
+/* Surface cards / panels */
+.bg-surface  { background-color: var(--color-bg-surface); }
+.bg-surface2 { background-color: var(--color-bg-surface2); }
+
+/* Borders */
+.border-theme { border-color: var(--color-border); }
+
+/* Text */
+.text-primary { color: var(--color-text-primary); }
+.text-muted   { color: var(--color-text-muted); }
+.text-subtle  { color: var(--color-text-subtle); }

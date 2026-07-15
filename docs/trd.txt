@@ -1,0 +1,96 @@
+Technical Requirements Document (TRD)
+Project: MediCycle – Smart Medicine Donation & Redistribution Platform
+Version: 1.0
+Prepared For: Major Project
+1. Purpose
+This Technical Requirements Document defines the technical architecture, technology stack, system components, APIs, database, security, deployment strategy, and development standards for MediCycle.
+2. System Architecture
+Client (React + Tailwind CSS)        │ HTTPS REST APIs        │Spring Boot Backend        │Service Layer        │Repository Layer (JPA/Hibernate)        │PostgreSQL Database        │Cloudinary (Medicine Images)
+3. Technology Stack
+Frontend
+React, Tailwind CSS, React Router, Axios
+Backend
+Java 21, Spring Boot, Spring Security, Spring Data JPA, Hibernate
+Database
+PostgreSQL
+Authentication
+JWT + BCrypt
+Documentation
+Swagger/OpenAPI
+Storage
+Cloudinary (medicine images)
+Deployment
+Vercel (Frontend), Render (Backend), Neon PostgreSQL
+4. Frontend Requirements
+Responsive web design
+Role-based dashboards (Donor, Recipient, Pharmacy/NGO, Admin)
+Reusable components
+Form validation
+Image upload support
+Search and filtering
+Pagination for medicine listings
+5. Backend Requirements
+RESTful API architecture
+Layered architecture (Controller, Service, Repository)
+Global exception handling
+DTO-based request/response
+Role-based authorization
+Audit logging
+6. Database Tables
+Users
+Roles
+Medicines
+MedicineDonations
+MedicineImages
+VerificationRequests
+Inventory
+MedicineRequests
+Notifications
+AuditLogs
+7. Core REST APIs
+POST /api/auth/register
+POST /api/auth/login
+GET /api/medicines
+POST /api/donations
+GET /api/donations
+PUT /api/verification/{id}
+GET /api/inventory
+POST /api/requests
+GET /api/admin/dashboard
+8. Security Requirements
+JWT Authentication
+Role-Based Access Control
+BCrypt password hashing
+Input validation
+CORS configuration
+HTTPS for production
+9. Performance Requirements
+Login Response: <2 secondsMedicine Search: <1 secondImage Upload: <5 secondsDashboard Load: <2 seconds
+10. File Upload Requirements
+Supported: JPG, PNG, PDFMaximum Size: 5 MBStore medicine images securely in Cloudinary.
+11. Logging & Monitoring
+Login attempts
+Medicine donations
+Verification decisions
+Medicine requests
+Application errors
+12. Testing Strategy
+Unit Testing (Services)
+Integration Testing (REST APIs)
+Frontend UI Testing
+User Acceptance Testing
+13. Deployment
+Frontend → VercelBackend → RenderDatabase → Neon PostgreSQLSource Control → GitHub
+14. Coding Standards
+Use SOLID principles
+Follow layered architecture
+Meaningful naming conventions
+Reusable React components
+Proper Git branching
+15. Future Enhancements
+OCR for expiry extraction
+Prescription OCR
+Email/SMS notifications
+Barcode scanning
+Government/NGO integration APIs
+Mobile application
