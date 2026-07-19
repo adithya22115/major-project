@@ -30,11 +30,16 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+frontend.log
 
 # === Backend (Spring Boot / Maven) ===
 backend/target/
 backend/uploads/
 backend/.mvn/wrapper/maven-wrapper.jar
+# Application configuration (contains sensitive data)
+backend/src/main/resources/application.properties
+backend/src/main/resources/data.sql
+backend/src/test/resources/application-test.properties
 
 # === Frontend (Vite / Node) ===
 frontend/node_modules/
