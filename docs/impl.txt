@@ -2,103 +2,119 @@ MediCycle - Implementation Plan
 Project: MediCycle – Smart Medicine Donation & Redistribution Platform
 Duration: 6 Weeks (College MVP)
 Methodology: Agile (Weekly Milestones)
+Version: 1.1 (Updated with location and additional features)
+
 1. Project Phases
 Phase 1 - Planning (Week 1)
 Finalize PRD, TRD and Website Flow
 Prepare UI wireframes
-Design ER Diagram and database schema
+Design ER Diagram and database schema (including pincode/location fields)
 Set up GitHub repository
 Create React, Spring Boot and PostgreSQL projects
+
 Phase 2 - Authentication & Foundation (Week 2)
 Implement JWT authentication
 Role-based authorization
-User registration/login
+User registration/login (with pincode field in profile)
 Common dashboard layout
 Swagger configuration
+Setup pincode lookup service integration (external API)
+Configure file upload directory
+
 Phase 3 - Medicine Donation Module (Week 3)
-Donation form
-Medicine image upload
+Donation form (add pincode auto-fill from user profile, editable)
+Medicine image upload (multiple)
 Prescription upload
 Donation history
 Donation status tracking
+Backend: store pincode with donation (derived from donor address or explicit)
+
 Phase 4 - Verification & Inventory (Week 4)
-Pharmacy verification dashboard
+Pharmacy verification dashboard (show donor pincode)
 Approve/Reject donations
-Inventory updates
-Medicine pool listing
-Search and filters
+Inventory updates (include pincode tagging)
+Medicine pool listing (with pincode filter)
+Search and filters (by name, category, pincode)
+
 Phase 5 - Medicine Request Module (Week 5)
 Recipient dashboard
-Medicine request workflow
+Medicine request workflow (pincode-aware search)
 Request approval
 Notifications
-Profile management
+Profile management (update pincode/address)
+Backend: request includes recipient pincode for proximity matching
+
 Phase 6 - Testing & Deployment (Week 6)
 Bug fixing
-Unit and integration testing
+Unit and integration testing (including pincode validation and location-based search)
 Deployment
 Documentation
 Final presentation preparation
+
 2. Team Responsibilities
 Member
 Responsibility
 Deliverables
 Member 1
 Backend
-Authentication, APIs, Security
+Authentication, APIs, Security, Pincode service, File service, Location logic
 Member 2
 Frontend
-React UI, Dashboards
+React UI, Dashboards, Pincode input components, Maps integration (future)
 Member 3
 Database
-Schema, JPA, Inventory
+Schema, JPA, Inventory, Location indexing
 Member 4
 Testing & Docs
-Testing, Deployment, Documentation
+Testing, Deployment, Documentation, Location test cases
+
 3. Module Dependency
-Authentication    ↓Role Management    ↓Medicine Donation    ↓Verification    ↓Inventory    ↓Medicine Pool    ↓Medicine Request    ↓Notifications    ↓Reports
+Authentication    ↓Role Management    ↓Medicine Donation (with pincode)    ↓Verification (location-aware)    ↓Inventory (pincode-tagged)    ↓Medicine Pool (pincode search)    ↓Medicine Request (proximity-based)    ↓Notifications    ↓Reports (geo-analytics)
+
 4. Deliverables
 PRD
 TRD
 Website Flow
 UI/UX Brief
-Backend APIs
+Backend APIs (including /api/pincode/lookup)
 Frontend Application
-Database
+Database (with pincode fields and indexes)
 Testing Report
 Final Report
 Presentation
-5. Acceptance Criteria
-Users can register and login.
-Donors can submit medicine donations.
-Pharmacy can verify donations.
-Approved medicines appear in the medicine pool.
-Recipients can request medicines.
-Inventory updates automatically.
-Admin can manage users and reports.
-6. Risks & Mitigation
-Risk
-Impact
-Mitigation
-Schedule delay
-High
-Deliver MVP first
-Integration issues
-Medium
-Integrate weekly
-Database changes
-Medium
-Freeze schema after Week 1
-UI inconsistency
-Low
-Use shared component library
-7. Final MVP Scope
-Authentication
+</think>5. Acceptance Criteria (Updated)**
+Users can register and login with pincode/address.
+Donors can submit medicine donations with pincode (auto-filled or manual).
+Pharmacy can verify donations and see donor location.
+Approved medicines appear in the medicine pool with pincode tagging.
+Recipients can search medicines by pincode (location-based).
+Inventory updates automatically per pincode.
+Admin can manage users and reports, including location statistics.
+
+6. Risks & Mitigation (Added)
+Risk: External pincode API dependency or rate limits.
+Impact: Medium
+Mitigation: Cache pincode lookups locally, implement fallback to manual entry, monitor usage.
+
+Risk: Inaccurate pincode to city/state mapping.
+Impact: Low
+Mitigation: Allow user to correct city/state after pincode lookup, store both.
+
+7. Final MVP Scope (Updated)
+Authentication (with pincode in profile)
 Role-based dashboards
-Medicine Donation
-Verification Workflow
-Medicine Pool
-Medicine Request
-Inventory Management
-Admin Dashboard
+Medicine Donation (pincode field)
+Verification Workflow (location display)
+Medicine Pool (pincode search/filter)
+Medicine Request (pincode-aware)
+Inventory Management (pincode-tagged)
+Admin Dashboard (location analytics)
 Deployment
+Additional: File upload service, Pincode lookup service, Guest registration, Password change
+
+8. Notes
+- The pincode field is stored in the users table and used to derive location for donations and requests.
+- Medicine donations inherit the donor's pincode at time of creation (denormalized for search performance).
+- Inventory does not store pincode directly; instead, medicines are assumed to be available at the donor's location unless a separate logistics model is introduced (future).
+- Search by pincode uses exact match or range (e.g., nearby pincodes via external API or local database of pincode ranges).
+- Future enhancements: separate location entity, geospatial queries (PostGIS), delivery radius, map UI.

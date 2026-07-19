@@ -4,7 +4,7 @@ import com.medicycle.entity.Role;
 import com.medicycle.entity.User;
 import com.medicycle.enums.RoleType;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;

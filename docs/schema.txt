@@ -38,7 +38,7 @@ users
   address (VARCHAR)
   city (VARCHAR)
   state (VARCHAR)
-  pincode (VARCHAR)
+  pincode (VARCHAR) -- Used for location-based medicine search and availability
   is_verified (BOOLEAN DEFAULT FALSE)
   created_at (TIMESTAMP)
   updated_at (TIMESTAMP)

@@ -1,19 +1,22 @@
 Product Requirements Document (PRD)
 Project: MediCycle – Smart Medicine Donation & Redistribution Platform
-Version: 1.0
+Version: 1.1
 Prepared For: College Capstone Project
 1. Executive Summary
-MediCycle is a web-based platform designed to reduce medicine waste by enabling users to donate unused, unexpired medicines. Every donated medicine is verified by an authorized pharmacy or NGO before it becomes available in a pooled inventory. Eligible patients can request verified medicines through the platform. The project focuses on safe redistribution instead of direct peer-to-peer resale.
+MediCycle is a web-based platform designed to reduce medicine waste by enabling users to donate unused, unexpired medicines. Every donated medicine is verified by an authorized pharmacy or NGO before it becomes available in a pooled inventory. Eligible patients can request verified medicines through the platform. The project focuses on safe redistribution instead of direct peer-to-peer resale, with additional features such as geolocation-based pincode lookup, file upload handling, guest registration, password reset, and enhanced admin management.
 2. Problem Statement
-Many usable medicines are discarded after treatments end, while economically disadvantaged patients struggle to obtain essential medicines. Existing systems rarely support safe medicine redistribution through a verified workflow.
+Many usable medicines are discarded after treatments end, while economically disadvantaged patients struggle to obtain essential medicines. Existing systems rarely support safe medicine redistribution through a verified workflow, and often lack features like location-based medicine availability, secure file handling, and comprehensive admin controls.
 3. Vision
-Build a secure, transparent and scalable platform that encourages medicine donation, minimizes waste, and supports affordable healthcare through verified redistribution.
+Build a secure, transparent and scalable platform that encourages medicine donation, minimizes waste, and supports affordable healthcare through verified redistribution, while incorporating modern features such as geolocation services, file management, and enhanced user experience.
 4. Objectives
 Reduce medicine wastage.
 Create a verified medicine donation workflow.
-Provide pooled inventory management.
-Allow eligible patients to request medicines.
+Provide pooled inventory management with location-based availability.
+Allow eligible patients to request medicines with prescription upload.
 Maintain complete transparency through role-based workflows.
+Provide administrative tools for managing users, medicines, verifications, and system settings.
+Enable secure file uploads for medicine images and prescriptions.
+Implement pincode-based location services for medicine availability.
 5. Stakeholders
 Donors (Patients)
 Recipients (Patients)
@@ -23,65 +26,101 @@ Administrators
 College Evaluators
 6. User Roles
 Donor
-Register, donate medicines, upload details, view donation status and history.
+Register, donate medicines, upload medicine images and prescriptions, view donation status and history, update profile, change password.
 Recipient
-Search medicines, request medicines, upload prescription when required, track requests.
+Search medicines by name/category/pincode, view medicine details, request medicines, upload prescription when required, track requests, update profile.
 Pharmacy/NGO
-Verify donations, manage pooled inventory, approve recipient requests, distribute medicines.
+Verify donations (approve/reject with remarks), manage inventory (view available medicines), approve/reject recipient requests, distribute medicines, view verification history, update profile.
 Admin
-Manage users, medicines, reports, verification records and platform settings.
+Manage users (view, edit, deactivate), manage medicines (add/edit/delete), manage verification records, view reports and analytics, configure system settings, oversee pharmacy/NGO activities, manage file uploads.
 7. Functional Requirements
 Authentication
-Role-based login using JWT.
+Role-based login using JWT with email verification (via token).
 Medicine Donation
-Upload medicine details, images, expiry date, quantity and prescription if required.
+Upload medicine details (name, manufacturer, category, dosage, description, requires prescription), quantity, batch number, manufacture date, expiry date, condition.
+Upload multiple medicine images.
+Upload prescription (if required).
+Guest registration (unverified users can donate but cannot request until verified).
+View donation history and status.
 Verification
-Approve or reject donated medicines after inspection.
-Medicine Pool
-Maintain inventory of approved medicines.
-Medicine Search
-Search by name/category/location.
+Pharmacy/NGO reviewers can view pending donations with details and images.
+Approve or reject donations with remarks.
+Automatic movement of approved medicines to inventory.
+View verification history.
+Medicine Pool & Inventory
+Maintain inventory of approved medicines with available, reserved, distributed, and expired quantities.
+Real-time inventory updates upon donation approval, reservation, distribution, and expiry.
+Search medicines by name, category, and pincode (location-based).
+View medicine details including total available quantity.
 Medicine Request
-Eligible users request available medicines.
+Eligible users (verified recipients) can request medicines from the pool.
+Upload prescription if required by medicine.
+Track request status (pending, approved, rejected, completed).
+Pharmacy/NGO can approve or reject requests.
+Upon approval, inventory is reserved and marked for distribution.
 Inventory
-Track available, reserved, distributed and expired stock.
+Track available, reserved, distributed, and expired stock per medicine.
+Automatic updates when donations are approved, requests are fulfilled, or medicines expire.
+Low stock alerts (future).
 Notifications
-Donation status and request updates.
-Reports
-Donation and distribution statistics for admin.
+Send notifications for donation status changes (submitted, under review, approved, rejected).
+Send notifications for request status changes (submitted, approved, rejected, completed).
+System announcements (admin).
+Real-time badge indicators (future).
+Reports & Analytics
+Admin dashboard showing donation statistics, verification rates, request fulfillment, inventory levels, user activity.
+Export reports (future).
 8. Non-Functional Requirements
-Responsive web application
-Secure authentication
-Response time below 2 seconds for common operations
-Scalable REST APIs
-Audit trail for approvals and rejections
+Responsive web application (mobile-first design).
+Secure authentication (JWT, HTTPS, bcrypt password hashing).
+Response time below 2 seconds for common operations.
+Scalable REST API architecture.
+Audit trail for all critical actions (donations, verifications, requests, user actions).
+File upload security (size limits, virus scanning placeholder, allowed types).
+Data validation and sanitization.
+Accessibility compliance (WCAG 2.0 AA).
 9. Workflow
-1. Donor uploads medicine.2. Pharmacy/NGO verifies medicine.3. Approved medicines enter pooled inventory.4. Recipient searches and requests medicine.5. Pharmacy/NGO approves request.6. Medicine is distributed.7. Inventory updates automatically.
-10. Database Tables
+1. Donor (registered or guest) uploads medicine with details and images.2. Pharmacy/NGO verifies medicine (approves/rejects).3. Approved medicines are added to inventory with location/pincode association.4. Recipient searches medicines by name/category/pincode and views details.5. Recipient requests medicine (uploading prescription if required).6. Pharmacy/NGO approves or rejects request.7. Upon approval, inventory is reserved and donor/recipient notified.8. Recipient collects medicine (offline) and confirms receipt (future).9. Inventory updated to reflect distribution.10. Admin monitors all activities via dashboard.
+10. Database Tables (extended)
 Users
 Roles
 Medicines
 MedicineDonations
-VerificationRequests
+MedicineImages
+Prescriptions
+Verification
+VerificationTokens (email verification)
 Inventory
 MedicineRequests
 Notifications
 AuditLogs
 11. Technology Stack
-Frontend: React + Tailwind CSSBackend: Spring BootDatabase: PostgreSQLAuthentication: JWTStorage: Cloudinary (optional)AI (Future): Gemini API / OCRDeployment: Vercel + Render
+Frontend: React 19 + Vite + Tailwind CSS + React Router + Axios
+Backend: Spring Boot 3 + Spring Data JPA + Spring Security + Hibernate (JPA) + Lombok
+Database: PostgreSQL (production) / H2 (development)
+Authentication: JWT (access token) + Email verification tokens
+Storage: Local file system (uploads/) with Cloudinary integration ready
+API Documentation: SpringDoc OpenAPI (Swagger UI)
+Additional Services: Pincode lookup (external API integration), File upload handling
+Development Tools: Maven, npm, ESLint (Oxlint), Prettier
+Deployment: Vercel (Frontend), Render (Backend), Neon PostgreSQL (cloud) or local PostgreSQL
 12. Future Enhancements
-OCR for expiry date extraction
-Prescription OCR
-QR code verification
-NGO integration
-Government hospital integration
-Analytics dashboard
-Mobile application
+OCR for expiry date extraction from medicine images.
+Prescription OCR for automated validation.
+QR code verification for medicine authenticity.
+Enhanced NGO/government hospital integration APIs.
+Advanced analytics dashboard with charts and predictions.
+Mobile application (React Native).
+Email/SMS notification integration.
+Role-based dashboards with customizable widgets.
+Dark/Light mode toggle.
 13. Assumptions & Legal Disclaimer
-This project is an educational prototype. Medicines are donated—not sold directly between users. Every donated medicine must be verified by an authorized pharmacy or NGO before redistribution. Actual deployment would require compliance with applicable pharmaceutical regulations and approvals.
+This project is an educational prototype. Medicines are donated—not sold directly between users. Every donated medicine must be verified by an authorized pharmacy or NGO before redistribution. Actual deployment would require compliance with applicable pharmaceutical regulations and approvals (e.g., FDA, CDSCO). The pincode lookup service relies on third-party APIs and may require API keys for production.
 14. Success Metrics
-Number of medicine donations
-Approval rate
-Medicines successfully redistributed
-Reduction in medicine waste
-User satisfaction
+Number of medicine donations (total and per month).
+Approval rate of donations.
+Medicines successfully redistributed (requested and collected).
+Reduction in medicine waste (estimated monetary value).
+User satisfaction (surveys, feedback).
+Average time from donation to request fulfillment.
+Active user count (donors, recipients, verifiers).
