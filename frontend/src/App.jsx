@@ -10,7 +10,6 @@ import Layout from './components/common/Layout';
 // Public pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Donor pages
@@ -29,10 +28,13 @@ import PharmacyDashboard from './pages/pharmacy/PharmacyDashboard';
 import PendingDonations from './pages/pharmacy/PendingDonations';
 import InventoryManagement from './pages/pharmacy/InventoryManagement';
 import PharmacyRequests from './pages/pharmacy/PharmacyRequests';
+import PharmacyVerification from './pages/pharmacy/PharmacyVerification';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
+import AdminMedicines from './pages/admin/AdminMedicines';
+import AdminVerifications from './pages/admin/AdminVerifications';
 import Reports from './pages/admin/Reports';
 import Settings from './pages/admin/Settings';
 
@@ -55,44 +57,45 @@ function App() {
   }
 
   // Helper to get dashboard path by role
-  const getDashboardPath = (role) => {
+  const getDashboardPath = (role, verified) => {
     switch (role) {
       case 'DONOR': return '/donor/dashboard';
       case 'RECIPIENT': return '/recipient/dashboard';
-      case 'PHARMACY': return '/pharmacy/dashboard';
+      case 'PHARMACY': return verified ? '/pharmacy/dashboard' : '/pharmacy/verification';
       case 'ADMIN': return '/admin/dashboard';
       default: return '/';
     }
   };
 
-  if (!user) {
-    return (
-      <ThemeProvider>
-        <BrowserRouter>
-          <Toaster position="top-right" />
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </BrowserRouter>
-      </ThemeProvider>
-    );
-  }
+  const isDonor = user?.role === 'DONOR';
+  const isRecipient = user?.role === 'RECIPIENT';
+  const isPharmacy = user?.role === 'PHARMACY';
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <ThemeProvider>
       <BrowserRouter>
         <Toaster position="top-right" />
         <Routes>
-          {/* Default redirect based on role */}
-          <Route path="/" element={<Navigate to={getDashboardPath(user.role)} replace />} />
+          {/* Landing page always available */}
+          <Route path="/" element={
+            (isDonor && !user?.isGuest) ? <Navigate to="/donor/dashboard" replace /> :
+            (isRecipient && !user?.isGuest) ? <Navigate to="/recipient/dashboard" replace /> :
+            <LandingPage />
+          } />
+
+          {/* Login only for Admin / Pharmacy */}
+          <Route path="/login" element={
+            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <LoginPage />
+          } />
+
+          {/* Not Found */}
+          <Route path="*" element={<NotFoundPage />} />
 
           {/* Authenticated Routes wrapped in Layout */}
           <Route element={<Layout />}>
-            {/* Donor Routes */}
-            {user.role === 'DONOR' && (
+            {/* Donor Routes (guest or authenticated) */}
+            {(isDonor || (!user && false)) && (
               <>
                 <Route path="/donor/dashboard" element={<DonorDashboard />} />
                 <Route path="/donor/donate" element={<DonateMedicine />} />
@@ -100,8 +103,8 @@ function App() {
               </>
             )}
 
-            {/* Recipient Routes */}
-            {user.role === 'RECIPIENT' && (
+            {/* Recipient Routes (guest or authenticated) */}
+            {(isRecipient || (!user && false)) && (
               <>
                 <Route path="/recipient/dashboard" element={<RecipientDashboard />} />
                 <Route path="/recipient/medicines" element={<MedicinePool />} />
@@ -111,32 +114,43 @@ function App() {
             )}
 
             {/* Pharmacy Routes */}
-            {user.role === 'PHARMACY' && (
+            {isPharmacy && (
               <>
-                <Route path="/pharmacy/dashboard" element={<PharmacyDashboard />} />
-                <Route path="/pharmacy/pending" element={<PendingDonations />} />
-                <Route path="/pharmacy/inventory" element={<InventoryManagement />} />
-                <Route path="/pharmacy/requests" element={<PharmacyRequests />} />
-                <Route path="/pharmacy/reports" element={<Reports />} />
+                <Route path="/pharmacy/verification" element={<PharmacyVerification />} />
+                {user.verified && (
+                  <>
+                    <Route path="/pharmacy/dashboard" element={<PharmacyDashboard />} />
+                    <Route path="/pharmacy/pending" element={<PendingDonations />} />
+                    <Route path="/pharmacy/inventory" element={<InventoryManagement />} />
+                    <Route path="/pharmacy/requests" element={<PharmacyRequests />} />
+                    <Route path="/pharmacy/reports" element={<Reports />} />
+                  </>
+                )}
               </>
             )}
 
             {/* Admin Routes */}
-            {user.role === 'ADMIN' && (
+            {isAdmin && (
               <>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<UserManagement />} />
+                <Route path="/admin/medicines" element={<AdminMedicines />} />
+                <Route path="/admin/verifications" element={<AdminVerifications />} />
                 <Route path="/admin/reports" element={<Reports />} />
                 <Route path="/admin/settings" element={<Settings />} />
               </>
             )}
 
-            {/* Shared Routes */}
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/notifications" element={<Notifications />} />
+            {/* Shared Routes for authenticated users */}
+            {user && (
+              <>
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/notifications" element={<Notifications />} />
+              </>
+            )}
             
-            {/* Catch-all for authenticated users */}
-            <Route path="*" element={<Navigate to={getDashboardPath(user.role)} replace />} />
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

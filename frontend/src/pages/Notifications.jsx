@@ -16,20 +16,7 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const data = await getNotifications().catch(() => [
-        {
-          id: 1, title: 'Donation Approved',
-          message: 'Your donation of Paracetamol has been verified and added to the pool.',
-          type: 'SUCCESS', isRead: false,
-          createdAt: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          id: 2, title: 'Request Update',
-          message: 'Your request for Insulin is under review.',
-          type: 'INFO', isRead: true,
-          createdAt: new Date(Date.now() - 86400000).toISOString()
-        },
-      ]);
+      const data = await getNotifications();
       setNotifications(data);
     } catch {
       toast.error('Failed to load notifications');
@@ -38,13 +25,23 @@ const Notifications = () => {
     }
   };
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+  const handleMarkAsRead = async (id) => {
+    try {
+      await markAsRead(id);
+      setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch {
+      toast.error('Failed to mark as read');
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-    toast.success('All marked as read');
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      toast.success('All marked as read');
+    } catch {
+      toast.error('Failed to mark all as read');
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

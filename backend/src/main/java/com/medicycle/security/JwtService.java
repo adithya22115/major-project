@@ -23,6 +23,10 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    public long getDefaultExpiration() {
+        return expiration;
+    }
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -33,20 +37,23 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-        if (userDetails instanceof UserPrincipal principal) {
-            claims.put("userId", principal.getId());
-            claims.put("role", principal.getUser().getRole().getRoleName().name());
-        }
-        return generateToken(claims, userDetails);
+        return generateToken(new HashMap<>(), userDetails, expiration);
+    }
+
+    public String generateToken(UserDetails userDetails, long customExpiration) {
+        return generateToken(new HashMap<>(), userDetails, customExpiration);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        return generateToken(extraClaims, userDetails, expiration);
+    }
+
+    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails, long customExpiration) {
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .expiration(new Date(System.currentTimeMillis() + customExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }

@@ -53,4 +53,36 @@ public class MedicineService {
         auditService.log(admin, "MEDICINE_CREATED", "Medicine", medicine.getId());
         return DtoMapper.toMedicineResponse(medicine);
     }
+
+    @Transactional
+    public MedicineResponse updateMedicine(Long id, MedicineCreateRequest request, Long adminId) {
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + adminId));
+
+        Medicine medicine = medicineRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found: " + id));
+
+        if (request.getMedicineName() != null) medicine.setMedicineName(request.getMedicineName());
+        if (request.getManufacturer() != null) medicine.setManufacturer(request.getManufacturer());
+        if (request.getCategory() != null) medicine.setCategory(request.getCategory());
+        if (request.getDosage() != null) medicine.setDosage(request.getDosage());
+        if (request.getDescription() != null) medicine.setDescription(request.getDescription());
+        medicine.setRequiresPrescription(request.isRequiresPrescription());
+
+        medicine = medicineRepository.save(medicine);
+        auditService.log(admin, "MEDICINE_UPDATED", "Medicine", medicine.getId());
+        return DtoMapper.toMedicineResponse(medicine);
+    }
+
+    @Transactional
+    public void deleteMedicine(Long id, Long adminId) {
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + adminId));
+
+        Medicine medicine = medicineRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found: " + id));
+
+        medicineRepository.delete(medicine);
+        auditService.log(admin, "MEDICINE_DELETED", "Medicine", id);
+    }
 }

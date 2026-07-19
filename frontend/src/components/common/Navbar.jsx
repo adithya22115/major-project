@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pill, Menu, X } from 'lucide-react';
+import { Pill, Menu, X, Heart, Package } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
-const Navbar = () => {
+const Navbar = ({ onOpenGuest }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const handleDonateClick = () => {
+    if (onOpenGuest) onOpenGuest('DONOR');
+    setMobileOpen(false);
+  };
+
+  const handleFindClick = () => {
+    if (onOpenGuest) onOpenGuest('RECIPIENT');
+    setMobileOpen(false);
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-surface border-b border-theme shadow-sm transition-colors duration-200">
@@ -26,21 +35,41 @@ const Navbar = () => {
             <a href="#" className="text-muted hover:text-blue-500 font-medium transition-colors">Home</a>
             <a href="#about" className="text-muted hover:text-blue-500 font-medium transition-colors">About</a>
             <a href="#how-it-works" className="text-muted hover:text-blue-500 font-medium transition-colors">How It Works</a>
-            <Link to="/login" className="text-muted hover:text-blue-500 font-medium transition-colors">Medicines</Link>
           </div>
 
           {/* Desktop Right Buttons */}
           <div className="hidden md:flex items-center space-x-3">
             <ThemeToggle />
-            <Link to="/login" className="text-blue-500 hover:text-blue-400 font-medium px-4 py-2 transition-colors">
-              Log in
-            </Link>
-            <Link
-              to="/register"
-              className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm shadow-blue-600/30"
-            >
-              Sign up
-            </Link>
+            {onOpenGuest && (
+              <>
+                <Link
+                  to="/login"
+                  className="text-muted hover:text-blue-500 font-medium px-3 py-2 transition-colors"
+                >
+                  Staff Login
+                </Link>
+                <div className="w-px h-6 bg-theme" />
+                <button
+                  onClick={handleDonateClick}
+                  className="flex items-center gap-1.5 text-blue-500 hover:text-blue-400 font-medium px-4 py-2 transition-colors"
+                >
+                  <Heart className="h-4 w-4" />
+                  Donate
+                </button>
+                <button
+                  onClick={handleFindClick}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm shadow-blue-600/30 flex items-center gap-1.5"
+                >
+                  <Package className="h-4 w-4" />
+                  Find Medicines
+                </button>
+              </>
+            )}
+            {!onOpenGuest && (
+              <Link to="/login" className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm shadow-blue-600/30">
+                Admin / Pharmacist Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile Controls */}
@@ -63,8 +92,21 @@ const Navbar = () => {
           <a href="#about" className="text-primary font-medium py-2">About</a>
           <a href="#how-it-works" className="text-primary font-medium py-2">How It Works</a>
           <hr className="border-theme" />
-          <Link to="/login" className="text-blue-500 font-medium py-2">Log in</Link>
-          <Link to="/register" className="bg-blue-600 text-white text-center rounded-lg py-2.5 font-medium hover:bg-blue-500">Sign up</Link>
+          {onOpenGuest ? (
+            <>
+              <Link to="/login" className="text-muted font-medium py-2">Staff Login</Link>
+              <button onClick={handleDonateClick} className="text-blue-500 font-medium py-2 text-left flex items-center gap-2">
+                <Heart className="h-4 w-4" /> Donate Medicine
+              </button>
+              <button onClick={handleFindClick} className="bg-blue-600 text-white text-center rounded-lg py-2.5 font-medium hover:bg-blue-500 flex items-center justify-center gap-2">
+                <Package className="h-4 w-4" /> Find Medicines
+              </button>
+            </>
+          ) : (
+            <Link to="/login" className="bg-blue-600 text-white text-center rounded-lg py-2.5 font-medium hover:bg-blue-500">
+              Admin / Pharmacist Login
+            </Link>
+          )}
         </div>
       )}
     </nav>

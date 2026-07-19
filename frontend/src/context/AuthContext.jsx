@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../services/api';
+import { updatePincode as apiUpdatePincode, updateLocation as apiUpdateLocation } from '../services/userService';
 
 const AuthContext = createContext();
 
@@ -53,14 +54,20 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+  const login = async (email, password, rememberMe = false) => {
+    const response = await api.post('/auth/login', { email, password, rememberMe });
     const data = response.data;
     const userInfo = {
       userId: data.userId,
       name: data.name,
       email: data.email,
       role: data.role,
+      city: data.city || null,
+      state: data.state || null,
+      pincode: data.pincode || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
+      verified: data.verified || false,
     };
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(userInfo));
@@ -89,6 +96,12 @@ export const AuthProvider = ({ children }) => {
       name: data.name,
       email: data.email,
       role: data.role,
+      city: data.city || formData.city || null,
+      state: data.state || formData.state || null,
+      pincode: data.pincode || formData.pincode || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
+      verified: data.verified || false,
     };
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(userInfo));
@@ -100,7 +113,79 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    window.location.href = '/login';
+    window.location.href = '/';
+  };
+
+  const guestRegister = async (name, role, phone, pincode, latitude, longitude) => {
+    const payload = { name, role };
+    if (phone) payload.phone = phone;
+    if (pincode) payload.pincode = pincode;
+    if (latitude != null) payload.latitude = latitude;
+    if (longitude != null) payload.longitude = longitude;
+    const response = await api.post('/auth/guest-register', payload);
+    const data = response.data;
+    const userInfo = {
+      userId: data.userId,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      city: data.city || null,
+      state: data.state || null,
+      pincode: data.pincode || null,
+      latitude: data.latitude || null,
+      longitude: data.longitude || null,
+      verified: data.verified || false,
+      isGuest: true,
+    };
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(userInfo));
+    setUser(userInfo);
+    return { user: userInfo, token: data.token };
+  };
+
+  const updateUserLocation = (city, state, pincode) => {
+    setUser(prev => {
+      const updated = { ...prev, city, state, pincode };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const updateLocation = async (latitude, longitude) => {
+    const result = await apiUpdateLocation(latitude, longitude);
+    const updated = {
+      userId: result.id,
+      name: result.name,
+      email: result.email,
+      role: result.role,
+      city: result.city || null,
+      state: result.state || null,
+      pincode: result.pincode || null,
+      latitude: result.latitude || null,
+      longitude: result.longitude || null,
+      verified: result.isVerified || false,
+      isGuest: user?.isGuest || false,
+    };
+    localStorage.setItem('user', JSON.stringify(updated));
+    setUser(updated);
+    return updated;
+  };
+
+  const setPincode = async (pincode) => {
+    const result = await apiUpdatePincode(pincode);
+    const updated = {
+      userId: result.id,
+      name: result.name,
+      email: result.email,
+      role: result.role,
+      city: result.city || null,
+      state: result.state || null,
+      pincode: result.pincode || null,
+      verified: result.isVerified || false,
+    };
+    localStorage.setItem('user', JSON.stringify(updated));
+    setUser(updated);
+    return updated;
   };
 
   const value = {
@@ -108,6 +193,10 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    guestRegister,
+    updateUserLocation,
+    updateLocation,
+    setPincode,
     isAuthenticated: !!user,
     loading,
   };

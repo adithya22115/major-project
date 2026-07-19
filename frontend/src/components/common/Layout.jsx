@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Sidebar from './Sidebar';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
-import { Menu, Bell, User as UserIcon } from 'lucide-react';
+import { Menu, Bell } from 'lucide-react';
 
 const Layout = () => {
   const { user } = useAuth();
@@ -27,6 +27,8 @@ const Layout = () => {
     if (path.includes('notifications'))return 'Notifications';
     return 'MediCycle';
   };
+
+  const isGuest = user?.isGuest;
 
   return (
     <div className="min-h-screen bg-page flex transition-colors duration-200">
@@ -65,14 +67,16 @@ const Layout = () => {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Notification Bell */}
-            <Link
-              to="/notifications"
-              className="p-2 text-muted hover:text-blue-500 hover:bg-surface2 rounded-full transition-colors relative"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
-            </Link>
+            {/* Notification Bell (not for guests) */}
+            {!isGuest && (
+              <Link
+                to="/notifications"
+                className="p-2 text-muted hover:text-blue-500 hover:bg-surface2 rounded-full transition-colors relative"
+              >
+                <Bell className="h-5 w-5" />
+                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
+              </Link>
+            )}
 
             {/* User Info */}
             <div className="flex items-center gap-3 pl-3 border-l border-theme">
@@ -81,7 +85,10 @@ const Layout = () => {
               </div>
               <div className="hidden sm:block">
                 <p className="text-sm font-medium text-primary">{user?.name || 'User'}</p>
-                <p className="text-xs text-muted capitalize">{user?.role?.toLowerCase()}</p>
+                <p className="text-xs text-muted capitalize">
+                  {user?.role?.toLowerCase()}
+                  {isGuest && ' (Guest)'}
+                </p>
               </div>
             </div>
           </div>

@@ -37,4 +37,20 @@ public class MedicineController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(medicineService.createMedicine(request, principal.getId()));
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MedicineResponse> updateMedicine(
+            @PathVariable Long id,
+            @Valid @RequestBody MedicineCreateRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(medicineService.updateMedicine(id, request, principal.getId()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMedicine(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        medicineService.deleteMedicine(id, principal.getId());
+        return ResponseEntity.noContent().build();
+    }
 }

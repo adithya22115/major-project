@@ -5,6 +5,13 @@ export const getDashboard = async () => {
   return response.data;
 };
 
+export const getOverview = async (city) => {
+  const params = {};
+  if (city) params.city = city;
+  const response = await api.get('/admin/overview', { params });
+  return response.data;
+};
+
 export const getUsers = async () => {
   const response = await api.get('/admin/users');
   return response.data;

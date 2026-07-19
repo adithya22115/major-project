@@ -22,6 +22,8 @@ public class UserResponse {
     private String city;
     private String state;
     private String pincode;
+    private Double latitude;
+    private Double longitude;
     private boolean isVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

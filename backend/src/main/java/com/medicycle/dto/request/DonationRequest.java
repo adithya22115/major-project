@@ -1,6 +1,7 @@
 package com.medicycle.dto.request;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -10,8 +11,14 @@ import java.util.List;
 @Data
 public class DonationRequest {
 
-    @NotNull(message = "Medicine ID is required")
     private Long medicineId;
+
+    private String medicineName;
+    private String manufacturer;
+    private String category;
+    private String dosage;
+    private String description;
+    private boolean requiresPrescription;
 
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")

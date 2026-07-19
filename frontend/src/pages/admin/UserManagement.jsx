@@ -27,12 +27,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data = await getUsers().catch(() => ([
-        { id: 1, name: 'John Doe',               email: 'john@example.com',           role: 'DONOR',     isVerified: true,  createdAt: '2026-06-15T10:00:00Z' },
-        { id: 2, name: 'Jane Smith',              email: 'jane@example.com',           role: 'RECIPIENT', isVerified: true,  createdAt: '2026-06-16T11:30:00Z' },
-        { id: 3, name: 'City Hospital Pharmacy',  email: 'pharmacy@cityhospital.com',  role: 'PHARMACY',  isVerified: false, createdAt: '2026-07-10T09:15:00Z' },
-        { id: 4, name: 'Admin User',              email: 'admin@medicycle.org',        role: 'ADMIN',     isVerified: true,  createdAt: '2026-01-01T00:00:00Z' },
-      ]));
+      const data = await getUsers();
       setUsers(data);
     } catch {
       toast.error('Failed to load users');
@@ -41,9 +36,14 @@ const UserManagement = () => {
     }
   };
 
-  const handleStatusChange = (id, isVerified) => {
-    setUsers(users.map(u => u.id === id ? { ...u, isVerified } : u));
-    toast.success(`User ${isVerified ? 'verified' : 'suspended'} successfully`);
+  const handleStatusChange = async (id, isVerified) => {
+    try {
+      await updateUserStatus(id, { isVerified });
+      setUsers(users.map(u => u.id === id ? { ...u, isVerified } : u));
+      toast.success(`User ${isVerified ? 'verified' : 'suspended'} successfully`);
+    } catch {
+      toast.error('Failed to update user status');
+    }
   };
 
   const filteredUsers = users.filter(user => {

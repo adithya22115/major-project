@@ -37,6 +37,9 @@ public class User {
     private String state;
     private String pincode;
 
+    private Double latitude;
+    private Double longitude;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean isVerified = false;

@@ -43,6 +43,14 @@ public class MedicineDonation {
     private DonationStatus status = DonationStatus.PENDING;
 
     private String remarks;
+
+    private String city;
+    private String state;
+    private String pincode;
+
+    private Double latitude;
+    private Double longitude;
+
     private LocalDateTime createdAt;
 
     @PrePersist

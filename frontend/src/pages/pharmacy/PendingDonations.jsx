@@ -41,9 +41,8 @@ const PendingDonations = () => {
     try {
       setActionLoading(true);
       await verifyDonation(selectedDonation.id, {
-        status,
-        remarks,
-        result: status === 'APPROVED' ? 'PASSED' : 'FAILED'
+        result: status,
+        remarks
       });
       
       toast.success(`Donation ${status.toLowerCase()} successfully`);

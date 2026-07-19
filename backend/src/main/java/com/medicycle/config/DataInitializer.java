@@ -36,7 +36,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedAdminUser() {
-        if (userRepository.existsByEmail("admin@medicycle.com")) {
+        if (userRepository.existsByEmail("adithyaadhi660@gmail.com")) {
             return;
         }
 
@@ -44,15 +44,17 @@ public class DataInitializer implements CommandLineRunner {
                 .orElseThrow(() -> new IllegalStateException("ADMIN role not found"));
 
         User admin = User.builder()
-                .name("System Admin")
-                .email("admin@medicycle.com")
+                .name("Adithya Admin")
+                .email("adithyaadhi660@gmail.com")
                 .phone("9999999999")
-                .password(passwordEncoder.encode("admin123"))
+                .password(passwordEncoder.encode("Adithya@123"))
                 .role(adminRole)
                 .address("MediCycle HQ")
                 .city("Mumbai")
                 .state("Maharashtra")
                 .pincode("400001")
+                .latitude(19.0760)
+                .longitude(72.8777)
                 .isVerified(true)
                 .build();
 

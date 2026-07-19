@@ -11,7 +11,7 @@ const labelClass = 'block text-sm font-medium text-muted mb-1.5';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', phone: '',
+    name: '', email: '', password: '', confirmPassword: '', phone: '',
     roleId: '1', address: '', city: '', state: '', pincode: ''
   });
   const [error, setError] = useState('');
@@ -26,6 +26,14 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
     setLoading(true);
     try {
       const response = await register(formData);
@@ -35,16 +43,17 @@ const RegisterPage = () => {
         const role = response.user.role;
         if (role === 'DONOR')     redirectPath = '/donor/dashboard';
         else if (role === 'RECIPIENT') redirectPath = '/recipient/dashboard';
-        else if (role === 'PHARMACY')  redirectPath = '/pharmacy/dashboard';
-        else if (role === 'ADMIN')     redirectPath = '/admin/dashboard';
+        else if (role === 'PHARMACY')  redirectPath = '/pharmacy/verification';
       }
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-        err.response?.data?.email ||
-        'Registration failed. Please try again.'
-      );
+      const data = err.response?.data;
+      if (data?.errors) {
+        const firstError = Object.values(data.errors)[0];
+        setError(firstError || 'Registration failed. Please try again.');
+      } else {
+        setError(data?.message || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -127,7 +136,12 @@ const RegisterPage = () => {
 
                   <div>
                     <label className={labelClass}>Password</label>
-                    <input name="password" type="password" required className={inputClass} value={formData.password} onChange={handleChange} />
+                    <input name="password" type="password" required minLength={6} className={inputClass} value={formData.password} onChange={handleChange} placeholder="Min. 6 characters" />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Confirm Password</label>
+                    <input name="confirmPassword" type="password" required className={inputClass} value={formData.confirmPassword} onChange={handleChange} placeholder="Re-enter password" />
                   </div>
 
                   <div>

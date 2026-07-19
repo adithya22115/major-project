@@ -16,4 +16,10 @@ public class AuthResponse {
     private String name;
     private String email;
     private RoleType role;
+    private String city;
+    private String state;
+    private String pincode;
+    private Double latitude;
+    private Double longitude;
+    private boolean verified;
 }
