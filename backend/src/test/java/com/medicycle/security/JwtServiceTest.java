@@ -3,6 +3,7 @@ package com.medicycle.security;
 import com.medicycle.entity.Role;
 import com.medicycle.entity.User;
 import com.medicycle.enums.RoleType;
+import com.medicycle.repository.JwtBlacklistRepository;
 import io.jsonwebtoken.Jwts;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -14,9 +15,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class JwtServiceTest {
 
+    private JwtBlacklistRepository jwtBlacklistRepository;
     private JwtService jwtService;
     private UserPrincipal userPrincipal;
 
@@ -25,9 +28,8 @@ class JwtServiceTest {
 
     @BeforeEach
     void setUp() {
-        jwtService = new JwtService();
-        ReflectionTestUtils.setField(jwtService, "secret", SECRET);
-        ReflectionTestUtils.setField(jwtService, "expiration", EXPIRATION);
+        jwtBlacklistRepository = mock(JwtBlacklistRepository.class);
+        jwtService = new JwtService(SECRET, EXPIRATION, 2592000000L, jwtBlacklistRepository);
 
         Role donorRole = Role.builder().id(1L).roleName(RoleType.DONOR).build();
         User user = User.builder()
@@ -81,12 +83,10 @@ class JwtServiceTest {
     @Test
     void isTokenValid_shouldReturnFalse_forExpiredToken() {
         // Generate a token with 0ms expiration (instantly expired)
-        String token = jwtService.generateToken(userPrincipal, 0L);
+        String token = jwtService.generateToken(userPrincipal, -1L);
 
-        // Small delay to ensure expiration
-        try { Thread.sleep(10); } catch (InterruptedException ignored) {}
-
-        assertThrows(Exception.class, () -> jwtService.isTokenValid(token, userPrincipal));
+        boolean valid = jwtService.isTokenValid(token, userPrincipal);
+        assertFalse(valid);
     }
 
     @Test

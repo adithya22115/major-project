@@ -1,6 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../services/api';
-import { updatePincode as apiUpdatePincode, updateLocation as apiUpdateLocation } from '../services/userService';
+import {
+  updatePincode as apiUpdatePincode,
+  updateLocation as apiUpdateLocation,
+} from '../services/userService';
 
 const AuthContext = createContext();
 
@@ -12,7 +15,6 @@ export const useAuth = () => {
   return context;
 };
 
-// Helper to decode JWT payload without a library
 const decodeToken = (token) => {
   try {
     const base64Url = token.split('.')[1];
@@ -32,6 +34,7 @@ const decodeToken = (token) => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pendingTwoFactorEmail, setPendingTwoFactorEmail] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -42,41 +45,78 @@ export const AuthProvider = ({ children }) => {
         if (decoded && decoded.exp * 1000 > Date.now()) {
           setUser(JSON.parse(storedUser));
         } else {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            refreshAccessToken(refreshToken);
+          } else {
+            clearAuth();
+          }
         }
       } catch (error) {
-        console.error('Invalid token', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearAuth();
       }
     }
     setLoading(false);
   }, []);
 
+  const clearAuth = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  const refreshAccessToken = async (refreshToken) => {
+    try {
+      const response = await api.post('/auth/refresh', { refreshToken });
+      const data = response.data;
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch {
+      clearAuth();
+    }
+  };
+
   const login = async (email, password, rememberMe = false) => {
     const response = await api.post('/auth/login', { email, password, rememberMe });
     const data = response.data;
-    const userInfo = {
-      userId: data.userId,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      city: data.city || null,
-      state: data.state || null,
-      pincode: data.pincode || null,
-      latitude: data.latitude || null,
-      longitude: data.longitude || null,
-      verified: data.verified || false,
-    };
+
+    if (data.twoFactorRequired) {
+      setPendingTwoFactorEmail(email);
+      return { twoFactorRequired: true, email };
+    }
+
+    const userInfo = buildUserInfo(data);
     localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(userInfo));
     setUser(userInfo);
     return { user: userInfo, token: data.token };
   };
 
+  const verifyTwoFactor = async (code) => {
+    if (!pendingTwoFactorEmail) {
+      throw new Error('No pending 2FA session');
+    }
+    const response = await api.post('/auth/verify-2fa', {
+      email: pendingTwoFactorEmail,
+      code,
+    });
+    const data = response.data;
+    const userInfo = buildUserInfo(data);
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('user', JSON.stringify(userInfo));
+    setUser(userInfo);
+    setPendingTwoFactorEmail(null);
+    return { user: userInfo, token: data.token };
+  };
+
   const register = async (formData) => {
-    // Map roleId to RoleType enum name
     const roleMap = { '1': 'DONOR', '2': 'RECIPIENT', '3': 'PHARMACY' };
     const payload = {
       name: formData.name,
@@ -91,29 +131,28 @@ export const AuthProvider = ({ children }) => {
     };
     const response = await api.post('/auth/register', payload);
     const data = response.data;
-    const userInfo = {
-      userId: data.userId,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      city: data.city || formData.city || null,
-      state: data.state || formData.state || null,
-      pincode: data.pincode || formData.pincode || null,
-      latitude: data.latitude || null,
-      longitude: data.longitude || null,
-      verified: data.verified || false,
-    };
+    const userInfo = buildUserInfo(data);
     localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(userInfo));
     setUser(userInfo);
     return { user: userInfo, token: data.token };
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    window.location.href = '/';
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await api.post('/auth/logout', {}, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch {
+    } finally {
+      clearAuth();
+      setPendingTwoFactorEmail(null);
+      window.location.href = '/';
+    }
   };
 
   const guestRegister = async (name, role, phone, pincode, latitude, longitude) => {
@@ -125,26 +164,18 @@ export const AuthProvider = ({ children }) => {
     const response = await api.post('/auth/guest-register', payload);
     const data = response.data;
     const userInfo = {
-      userId: data.userId,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      city: data.city || null,
-      state: data.state || null,
-      pincode: data.pincode || null,
-      latitude: data.latitude || null,
-      longitude: data.longitude || null,
-      verified: data.verified || false,
+      ...buildUserInfo(data),
       isGuest: true,
     };
     localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(userInfo));
     setUser(userInfo);
     return { user: userInfo, token: data.token };
   };
 
   const updateUserLocation = (city, state, pincode) => {
-    setUser(prev => {
+    setUser((prev) => {
       const updated = { ...prev, city, state, pincode };
       localStorage.setItem('user', JSON.stringify(updated));
       return updated;
@@ -153,19 +184,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateLocation = async (latitude, longitude) => {
     const result = await apiUpdateLocation(latitude, longitude);
-    const updated = {
-      userId: result.id,
-      name: result.name,
-      email: result.email,
-      role: result.role,
-      city: result.city || null,
-      state: result.state || null,
-      pincode: result.pincode || null,
-      latitude: result.latitude || null,
-      longitude: result.longitude || null,
-      verified: result.isVerified || false,
-      isGuest: user?.isGuest || false,
-    };
+    const updated = buildUserInfoFromResult(result);
     localStorage.setItem('user', JSON.stringify(updated));
     setUser(updated);
     return updated;
@@ -173,20 +192,39 @@ export const AuthProvider = ({ children }) => {
 
   const setPincode = async (pincode) => {
     const result = await apiUpdatePincode(pincode);
-    const updated = {
-      userId: result.id,
-      name: result.name,
-      email: result.email,
-      role: result.role,
-      city: result.city || null,
-      state: result.state || null,
-      pincode: result.pincode || null,
-      verified: result.isVerified || false,
-    };
+    const updated = buildUserInfoFromResult(result);
     localStorage.setItem('user', JSON.stringify(updated));
     setUser(updated);
     return updated;
   };
+
+  const buildUserInfo = (data) => ({
+    userId: data.userId,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    city: data.city || null,
+    state: data.state || null,
+    pincode: data.pincode || null,
+    latitude: data.latitude || null,
+    longitude: data.longitude || null,
+    verified: data.verified || false,
+  });
+
+  const buildUserInfoFromResult = (result) => ({
+    userId: result.id,
+    name: result.name,
+    email: result.email,
+    role: result.role,
+    city: result.city || null,
+    state: result.state || null,
+    pincode: result.pincode || null,
+    latitude: result.latitude || null,
+    longitude: result.longitude || null,
+    verified: result.isVerified || false,
+    isTwoFactorEnabled: result.isTwoFactorEnabled || false,
+    isGuest: user?.isGuest || false,
+  });
 
   const value = {
     user,
@@ -194,6 +232,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     guestRegister,
+    verifyTwoFactor,
+    pendingTwoFactorEmail,
     updateUserLocation,
     updateLocation,
     setPincode,

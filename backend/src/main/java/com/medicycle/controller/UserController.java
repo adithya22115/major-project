@@ -55,4 +55,33 @@ public class UserController {
     public ResponseEntity<Map<String, Object>> lookupPincode(@PathVariable String pincode) {
         return ResponseEntity.ok(userService.lookupPincode(pincode));
     }
+
+    @GetMapping("/2fa/setup")
+    public ResponseEntity<Map<String, Object>> setupTwoFactor(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(userService.setupTwoFactor(principal.getId()));
+    }
+
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<Map<String, Object>> enableTwoFactor(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String code = body.get("code");
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Verification code is required"));
+        }
+        userService.enableTwoFactor(principal.getId(), code);
+        return ResponseEntity.ok(Map.of("message", "2FA enabled successfully"));
+    }
+
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<Map<String, Object>> disableTwoFactor(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String code = body.get("code");
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Verification code is required"));
+        }
+        userService.disableTwoFactor(principal.getId(), code);
+        return ResponseEntity.ok(Map.of("message", "2FA disabled successfully"));
+    }
 }

@@ -1,0 +1,92 @@
+================================================================================
+MediCycle - Database Viewing Guide
+================================================================================
+
+Your project uses PostgreSQL (currently active) with an H2 development fallback.
+
+--------------------------------------------------------------------
+1. PASSWORD HASHING
+--------------------------------------------------------------------
+
+All passwords are hashed using BCrypt via BCryptPasswordEncoder.
+
+BCrypt is a salted one-way hash. The original password CANNOT be
+recovered - only the hash is stored.
+
+Example hash: $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+  $2a     = algorithm (BCrypt)
+  10      = cost factor (2^10 rounds)
+  salt    = next 22 chars
+  rest    = salted hash
+
+Code: SecurityConfig.java -> BCryptPasswordEncoder bean
+
+Currently Admin password is "Adithya@123", stored as a BCrypt hash
+in the users.password column. You cannot reverse it.
+
+--------------------------------------------------------------------
+2. DATABASE CONNECTION INFO
+--------------------------------------------------------------------
+
+  URL:      jdbc:postgresql://localhost:5432/medicycle
+  User:     postgres
+  Password: Adithya@123
+
+All 17 tables are auto-created by Hibernate.
+
+--------------------------------------------------------------------
+3. HOW TO VIEW THE DATA
+--------------------------------------------------------------------
+
+OPTION A: pgAdmin (recommended)
+
+  1. Download from https://www.pgadmin.org/
+  2. Create new server connection:
+     - Name: medi cycle Local
+     - Host: localhost
+   - Port: 5432
+   - Maintenance DB: medicycle
+     - Username: postgres
+     - Password: Adithya@123
+
+  3. Browse to Databases > medicycle > Schemas > public > Tables
+
+OPTION B: psql command-line
+
+  1. Open a terminal
+  2. Run: psql -h localhost -U postgres -d medicycle
+
+  3. Useful commands:
+     \dt              - list all tables
+     \d users         - describe users table
+     SELECT * FROM users;
+     SELECT * FROM roles;
+
+OPTION C: H2 Console (development mode, no PostgreSQL required)
+
+  1. In application.properties, H2 lines and comment PostgreSQL lines
+  2. Start the backend
+  3. Visit http://localhost:8085/h2-console
+  4. JDBC URL: jdbc:h2:mem:medicycle;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+  5. User: sa, Password: (empty)
+
+--------------------------------------------------------------------
+4. SAMPLE SQL QUERIES
+--------------------------------------------------------------------
+
+-- Users with roles:
+SELECT u.id, u.name, u.email, r.role_name, u.is_verified, u.failed_login_attempts, u.locked_until
+FROM users u
+JOIN roles r ON u.role_id = r.id;
+
+-- Recent audit log:
+SELECT action, entity_name, timestamp
+FROM audit_logs
+ORDER BY timestamp DESC
+LIMIT 10;
+
+-- Active refresh tokens for a user:
+SELECT rt.token, rt.expires_at, rt.revoked
+FROM refresh_tokens rt
+JOIN users u ON rt.user_id = u.id
+WHERE u.email = 'admin@medicycle.com' AND rt.revoked = false;

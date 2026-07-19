@@ -1,0 +1,73 @@
+package com.medicycle.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+public class EmailService {
+
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
+
+    @Value("${app.base-url:http://localhost:8085}")
+    private String baseUrl;
+
+    public void sendVerificationEmail(String to, String name, String token) {
+        String verificationLink = baseUrl + "/api/auth/verify?token=" + token;
+        String subject = "Verify your MediCycle account";
+        String body = String.format("""
+                Hello %s,
+                
+                Thank you for registering with MediCycle.
+                
+                Please verify your email address by clicking the link below:
+                %s
+                
+                This link will expire in 24 hours.
+                
+                If you did not create an account, please ignore this email.
+                
+                Best regards,
+                MediCycle Team
+                """, name, verificationLink);
+
+        sendEmail(to, subject, body);
+    }
+
+    public void sendTwoFactorCodeEmail(String to, String code) {
+        String subject = "Your MediCycle 2FA Code";
+        String body = String.format("""
+                Your verification code is: %s
+                
+                This code will expire in 5 minutes.
+                
+                If you did not request this code, please ignore this email.
+                """, code);
+
+        sendEmail(to, subject, body);
+    }
+
+    private void sendEmail(String to, String subject, String text) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(text);
+            mailSender.send(message);
+            log.info("Email sent successfully to: {}", to);
+        } catch (Exception e) {
+            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            log.warn("Falling back to console logging for email verification");
+            log.info("=== EMAIL (console fallback) ===");
+            log.info("To: {}", to);
+            log.info("Subject: {}", subject);
+            log.info("Body:\n{}", text);
+            log.info("===============================");
+        }
+    }
+}

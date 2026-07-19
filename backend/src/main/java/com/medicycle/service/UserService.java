@@ -3,15 +3,22 @@ package com.medicycle.service;
 import com.medicycle.dto.request.ChangePasswordRequest;
 import com.medicycle.dto.request.UpdateProfileRequest;
 import com.medicycle.dto.response.UserResponse;
+import com.medicycle.entity.PasswordHistory;
 import com.medicycle.entity.User;
 import com.medicycle.exception.ResourceNotFoundException;
+import com.medicycle.repository.PasswordHistoryRepository;
 import com.medicycle.repository.UserRepository;
+import com.medicycle.security.PasswordValidator;
+import com.medicycle.security.TwoFactorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -22,6 +29,12 @@ public class UserService {
     private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
     private final PincodeLookupService pincodeLookupService;
+    private final PasswordValidator passwordValidator;
+    private final PasswordHistoryRepository passwordHistoryRepository;
+    private final TwoFactorService twoFactorService;
+
+    @Value("${app.password.history-count}")
+    private int passwordHistoryCount;
 
     @Transactional(readOnly = true)
     public UserResponse getProfile(Long userId) {
@@ -47,6 +60,7 @@ public class UserService {
         map.put("latitude", user.getLatitude());
         map.put("longitude", user.getLongitude());
         map.put("isVerified", user.isVerified());
+        map.put("isTwoFactorEnabled", user.isTwoFactorEnabled());
         map.put("createdAt", user.getCreatedAt());
         map.put("updatedAt", user.getUpdatedAt());
         return map;
@@ -129,6 +143,63 @@ public class UserService {
     }
 
     @Transactional
+    public Map<String, Object> setupTwoFactor(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        if (user.isTwoFactorEnabled()) {
+            throw new IllegalArgumentException("2FA is already enabled");
+        }
+
+        String secret = twoFactorService.generateSecret();
+        user.setTwoFactorSecret(secret);
+        userRepository.save(user);
+
+        String qrCodeUri = twoFactorService.getQrCodeUri(secret, user.getEmail());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("secret", secret);
+        result.put("qrCodeUri", qrCodeUri);
+        return result;
+    }
+
+    @Transactional
+    public void enableTwoFactor(Long userId, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        if (user.getTwoFactorSecret() == null) {
+            throw new IllegalArgumentException("Please initialize 2FA setup first");
+        }
+
+        if (!twoFactorService.verifyCode(user.getTwoFactorSecret(), code)) {
+            throw new IllegalArgumentException("Invalid verification code");
+        }
+
+        user.setTwoFactorEnabled(true);
+        userRepository.save(user);
+        auditService.log(user, "2FA_ENABLED", "User", user.getId());
+    }
+
+    @Transactional
+    public void disableTwoFactor(Long userId, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        if (!user.isTwoFactorEnabled()) {
+            throw new IllegalArgumentException("2FA is not enabled");
+        }
+
+        if (!twoFactorService.verifyCode(user.getTwoFactorSecret(), code)) {
+            throw new IllegalArgumentException("Invalid verification code");
+        }
+
+        user.setTwoFactorEnabled(false);
+        user.setTwoFactorSecret(null);
+        userRepository.save(user);
+        auditService.log(user, "2FA_DISABLED", "User", user.getId());
+    }
+
+    @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
@@ -137,8 +208,29 @@ public class UserService {
             throw new IllegalArgumentException("Current password is incorrect");
         }
 
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        List<String> passwordErrors = passwordValidator.validate(request.getNewPassword());
+        if (!passwordErrors.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", passwordErrors));
+        }
+
+        String newEncoded = passwordEncoder.encode(request.getNewPassword());
+
+        List<PasswordHistory> recentPasswords = passwordHistoryRepository.findTop5ByUserOrderByCreatedAtDesc(user);
+        for (PasswordHistory history : recentPasswords) {
+            if (passwordEncoder.matches(request.getNewPassword(), history.getPasswordHash())) {
+                throw new IllegalArgumentException("You cannot reuse a recent password");
+            }
+        }
+
+        user.setPassword(newEncoded);
         userRepository.save(user);
+
+        PasswordHistory historyEntry = PasswordHistory.builder()
+                .user(user)
+                .passwordHash(newEncoded)
+                .build();
+        passwordHistoryRepository.save(historyEntry);
+
         auditService.log(user, "PASSWORD_CHANGED", "User", user.getId());
     }
 }

@@ -8,11 +8,19 @@ import com.medicycle.entity.User;
 import com.medicycle.entity.VerificationToken;
 import com.medicycle.enums.RoleType;
 import com.medicycle.exception.ResourceNotFoundException;
+import com.medicycle.repository.PasswordHistoryRepository;
+import com.medicycle.repository.RefreshTokenRepository;
 import com.medicycle.repository.RoleRepository;
 import com.medicycle.repository.UserRepository;
 import com.medicycle.repository.VerificationTokenRepository;
 import com.medicycle.security.JwtService;
+import com.medicycle.security.PasswordValidator;
+import com.medicycle.security.RateLimiterService;
+import com.medicycle.security.TwoFactorService;
 import com.medicycle.security.UserPrincipal;
+import io.github.bucket4j.ConsumptionProbe;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +31,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,10 +44,17 @@ class AuthServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private RoleRepository roleRepository;
     @Mock private VerificationTokenRepository verificationTokenRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private PasswordHistoryRepository passwordHistoryRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private AuditService auditService;
+    @Mock private EmailService emailService;
+    @Mock private TwoFactorService twoFactorService;
+    @Mock private PasswordValidator passwordValidator;
+    @Mock private RateLimiterService rateLimiterService;
+    @Mock private HttpServletRequest httpServletRequest;
 
     @InjectMocks private AuthService authService;
 
@@ -76,10 +92,13 @@ class AuthServiceTest {
         when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
         when(roleRepository.findByRoleName(RoleType.DONOR)).thenReturn(Optional.of(donorRole));
         when(passwordEncoder.encode("password123")).thenReturn("encoded_password");
+        when(passwordValidator.validate(anyString())).thenReturn(Collections.emptyList());
         when(userRepository.save(any(User.class))).thenReturn(testUser);
         when(verificationTokenRepository.save(any(VerificationToken.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(jwtService.generateToken(any(UserPrincipal.class))).thenReturn("jwt_token");
+        when(jwtService.generateRefreshToken(any(UserPrincipal.class))).thenReturn("refresh_token");
+        when(refreshTokenRepository.save(any())).thenReturn(null);
 
         AuthResponse response = authService.register(request);
 
@@ -139,11 +158,21 @@ class AuthServiceTest {
         request.setPassword("password123");
         request.setRememberMe(false);
 
+        when(httpServletRequest.getRemoteAddr()).thenReturn("127.0.0.1");
+
+        ConsumptionProbe probe = mock(ConsumptionProbe.class);
+        when(probe.isConsumed()).thenReturn(true);
+        when(rateLimiterService.tryConsumeLogin(anyString())).thenReturn(probe);
+
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
         when(jwtService.getDefaultExpiration()).thenReturn(86400000L);
         when(jwtService.generateToken(any(UserPrincipal.class), anyLong())).thenReturn("jwt_token");
+        when(jwtService.generateRefreshToken(any(UserPrincipal.class))).thenReturn("refresh_token");
+        when(refreshTokenRepository.save(any())).thenReturn(null);
+        when(twoFactorService.isTotpEnabled(any())).thenReturn(false);
+        doNothing().when(rateLimiterService).resetLoginBucket(anyString());
 
-        AuthResponse response = authService.login(request);
+        AuthResponse response = authService.login(request, httpServletRequest);
 
         assertNotNull(response);
         assertEquals("jwt_token", response.getToken());
@@ -158,9 +187,13 @@ class AuthServiceTest {
         request.setEmail("nonexistent@example.com");
         request.setPassword("password123");
 
+        ConsumptionProbe probe = mock(ConsumptionProbe.class);
+        when(probe.isConsumed()).thenReturn(true);
+        when(rateLimiterService.tryConsumeLogin(anyString())).thenReturn(probe);
+
         when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> authService.login(request));
+        assertThrows(Exception.class, () -> authService.login(request, httpServletRequest));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.medicycle.security;
 
+import com.medicycle.repository.JwtBlacklistRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -9,26 +10,47 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final String secret;
+    private final long expiration;
+    private final long refreshExpiration;
+    private final JwtBlacklistRepository jwtBlacklistRepository;
 
-    @Value("${jwt.expiration}")
-    private long expiration;
+    public JwtService(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.expiration}") long expiration,
+            @Value("${jwt.refresh-expiration:2592000000}") long refreshExpiration,
+            JwtBlacklistRepository jwtBlacklistRepository) {
+        this.secret = secret;
+        this.expiration = expiration;
+        this.refreshExpiration = refreshExpiration;
+        this.jwtBlacklistRepository = jwtBlacklistRepository;
+    }
 
     public long getDefaultExpiration() {
         return expiration;
     }
 
+    public long getRefreshExpiration() {
+        return refreshExpiration;
+    }
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -48,8 +70,13 @@ public class JwtService {
         return generateToken(extraClaims, userDetails, expiration);
     }
 
+    public String generateRefreshToken(UserDetails userDetails) {
+        return generateToken(new HashMap<>(), userDetails, refreshExpiration);
+    }
+
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails, long customExpiration) {
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date())
@@ -59,12 +86,33 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        try {
+            String jti = extractJti(token);
+            if (jwtBlacklistRepository.existsByTokenJti(jti)) {
+                return false;
+            }
+            String username = extractUsername(token);
+            return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    private boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
+    }
+
+    public void invalidateToken(String token) {
+        try {
+            String jti = extractJti(token);
+            Date expiration = extractExpiration(token);
+            com.medicycle.entity.JwtBlacklist entry = com.medicycle.entity.JwtBlacklist.builder()
+                    .tokenJti(jti)
+                    .expiresAt(LocalDateTime.ofInstant(expiration.toInstant(), ZoneId.systemDefault()))
+                    .build();
+            jwtBlacklistRepository.save(entry);
+        } catch (Exception e) {
+        }
     }
 
     private Date extractExpiration(String token) {

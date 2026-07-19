@@ -7,7 +7,10 @@ import com.medicycle.entity.Role;
 import com.medicycle.entity.User;
 import com.medicycle.enums.RoleType;
 import com.medicycle.exception.ResourceNotFoundException;
+import com.medicycle.repository.PasswordHistoryRepository;
 import com.medicycle.repository.UserRepository;
+import com.medicycle.security.PasswordValidator;
+import com.medicycle.security.TwoFactorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -30,6 +35,9 @@ class UserServiceTest {
     @Mock private AuditService auditService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private PincodeLookupService pincodeLookupService;
+    @Mock private PasswordValidator passwordValidator;
+    @Mock private PasswordHistoryRepository passwordHistoryRepository;
+    @Mock private TwoFactorService twoFactorService;
 
     @InjectMocks private UserService userService;
 
@@ -157,7 +165,10 @@ class UserServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("old_password", "encoded_password")).thenReturn(true);
         when(passwordEncoder.encode("new_password")).thenReturn("new_encoded_password");
+        when(passwordValidator.validate("new_password")).thenReturn(Collections.emptyList());
+        when(passwordHistoryRepository.findTop5ByUserOrderByCreatedAtDesc(any())).thenReturn(Collections.emptyList());
         when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(passwordHistoryRepository.save(any())).thenReturn(null);
 
         userService.changePassword(1L, request);
 

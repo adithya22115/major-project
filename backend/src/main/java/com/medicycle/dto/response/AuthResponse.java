@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class AuthResponse {
     private String token;
+    private String refreshToken;
     private Long userId;
     private String name;
     private String email;
@@ -22,4 +23,6 @@ public class AuthResponse {
     private Double latitude;
     private Double longitude;
     private boolean verified;
+    private boolean twoFactorRequired;
 }
+
