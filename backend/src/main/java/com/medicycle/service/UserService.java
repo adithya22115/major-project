@@ -60,7 +60,7 @@ public class UserService {
         map.put("latitude", user.getLatitude());
         map.put("longitude", user.getLongitude());
         map.put("isVerified", user.isVerified());
-        map.put("isTwoFactorEnabled", user.isTwoFactorEnabled());
+        map.put("isTwoFactorEnabled", user.getIsTwoFactorEnabled());
         map.put("createdAt", user.getCreatedAt());
         map.put("updatedAt", user.getUpdatedAt());
         return map;
@@ -147,7 +147,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
-        if (user.isTwoFactorEnabled()) {
+        if (Boolean.TRUE.equals(user.getIsTwoFactorEnabled())) {
             throw new IllegalArgumentException("2FA is already enabled");
         }
 
@@ -175,7 +175,7 @@ public class UserService {
             throw new IllegalArgumentException("Invalid verification code");
         }
 
-        user.setTwoFactorEnabled(true);
+        user.setIsTwoFactorEnabled(true);
         userRepository.save(user);
         auditService.log(user, "2FA_ENABLED", "User", user.getId());
     }
@@ -185,7 +185,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
-        if (!user.isTwoFactorEnabled()) {
+        if (!Boolean.TRUE.equals(user.getIsTwoFactorEnabled())) {
             throw new IllegalArgumentException("2FA is not enabled");
         }
 
@@ -193,7 +193,7 @@ public class UserService {
             throw new IllegalArgumentException("Invalid verification code");
         }
 
-        user.setTwoFactorEnabled(false);
+        user.setIsTwoFactorEnabled(false);
         user.setTwoFactorSecret(null);
         userRepository.save(user);
         auditService.log(user, "2FA_DISABLED", "User", user.getId());

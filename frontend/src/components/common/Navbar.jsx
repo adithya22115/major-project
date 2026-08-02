@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pill, Menu, X, Heart, Package } from 'lucide-react';
+import { Pill, Menu, X, Heart, Package, Building2 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 const Navbar = ({ onOpenGuest }) => {
@@ -47,6 +47,13 @@ const Navbar = ({ onOpenGuest }) => {
                   className="text-muted hover:text-blue-500 font-medium px-3 py-2 transition-colors"
                 >
                   Staff Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center gap-1.5 text-emerald-500 hover:text-emerald-400 font-medium px-3 py-2 transition-colors"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Pharmacy Signup
                 </Link>
                 <div className="w-px h-6 bg-theme" />
                 <button
@@ -95,6 +102,9 @@ const Navbar = ({ onOpenGuest }) => {
           {onOpenGuest ? (
             <>
               <Link to="/login" className="text-muted font-medium py-2">Staff Login</Link>
+              <Link to="/register" className="text-emerald-500 font-medium py-2 flex items-center gap-2">
+                <Building2 className="h-4 w-4" /> Pharmacy Signup
+              </Link>
               <button onClick={handleDonateClick} className="text-blue-500 font-medium py-2 text-left flex items-center gap-2">
                 <Heart className="h-4 w-4" /> Donate Medicine
               </button>

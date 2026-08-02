@@ -72,6 +72,27 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Verification email sent."));
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        }
+        authService.forgotPassword(email);
+        return ResponseEntity.ok(Map.of("message", "If an account exists with that email, a password reset link has been sent."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        String newPassword = request.get("newPassword");
+        if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Token and new password are required"));
+        }
+        authService.resetPassword(token, newPassword);
+        return ResponseEntity.ok(Map.of("message", "Password has been reset successfully"));
+    }
+
     @PostMapping("/guest-register")
     public ResponseEntity<AuthResponse> guestRegister(@Valid @RequestBody GuestRegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.guestRegister(request));

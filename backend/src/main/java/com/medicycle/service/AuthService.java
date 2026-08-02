@@ -10,7 +10,9 @@ import com.medicycle.entity.User;
 import com.medicycle.entity.VerificationToken;
 import com.medicycle.enums.RoleType;
 import com.medicycle.exception.ResourceNotFoundException;
+import com.medicycle.entity.PasswordResetToken;
 import com.medicycle.repository.PasswordHistoryRepository;
+import com.medicycle.repository.PasswordResetTokenRepository;
 import com.medicycle.repository.RefreshTokenRepository;
 import com.medicycle.repository.RoleRepository;
 import com.medicycle.repository.UserRepository;
@@ -47,6 +49,7 @@ public class AuthService {
     private final VerificationTokenRepository verificationTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordHistoryRepository passwordHistoryRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -83,6 +86,9 @@ public class AuthService {
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
+        // Auto-verify donors and recipients; pharmacies require admin document verification
+        boolean autoVerify = (request.getRole() == RoleType.DONOR || request.getRole() == RoleType.RECIPIENT);
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -93,7 +99,7 @@ public class AuthService {
                 .city(request.getCity())
                 .state(request.getState())
                 .pincode(request.getPincode())
-                .isVerified(false)
+                .isVerified(autoVerify)
                 .failedLoginAttempts(0)
                 .build();
 
@@ -360,6 +366,56 @@ public class AuthService {
     }
 
     @Transactional
+    public void forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No account found with email: " + email));
+
+        // Invalidate any existing reset tokens for this user
+        passwordResetTokenRepository.deleteByUser(user);
+
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .token(UUID.randomUUID().toString())
+                .user(user)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), resetToken.getToken());
+        auditService.log(user, "PASSWORD_RESET_REQUESTED", "User", user.getId());
+    }
+
+    @Transactional
+    public void resetPassword(String tokenValue, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(tokenValue)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired reset token"));
+
+        if (!resetToken.isValid()) {
+            throw new IllegalArgumentException("Reset token has expired or already been used");
+        }
+
+        List<String> passwordErrors = passwordValidator.validate(newPassword);
+        if (!passwordErrors.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", passwordErrors));
+        }
+
+        User user = resetToken.getUser();
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        user.setPassword(encodedPassword);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+
+        savePasswordHistory(user, encodedPassword);
+
+        resetToken.setUsedAt(LocalDateTime.now());
+        passwordResetTokenRepository.save(resetToken);
+
+        refreshTokenRepository.revokeAllByUser(user, LocalDateTime.now());
+
+        auditService.log(user, "PASSWORD_RESET_COMPLETED", "User", user.getId());
+        log.info("Password reset completed for user: {} ({})", user.getName(), user.getEmail());
+    }
+
+    @Transactional
     public AuthResponse guestRegister(GuestRegisterRequest request) {
         if (request.getRole() != RoleType.DONOR && request.getRole() != RoleType.RECIPIENT) {
             throw new IllegalArgumentException("Guest registration only available for DONOR or RECIPIENT");
@@ -395,7 +451,7 @@ public class AuthService {
                 .pincode(request.getPincode())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
-                .isVerified(false)
+                .isVerified(true)
                 .failedLoginAttempts(0)
                 .build();
 
@@ -425,7 +481,7 @@ public class AuthService {
     }
 
     private void handleFailedLogin(User user) {
-        int attempts = user.getFailedLoginAttempts() + 1;
+        int attempts = (user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0) + 1;
         user.setFailedLoginAttempts(attempts);
 
         if (attempts >= maxLoginAttempts) {

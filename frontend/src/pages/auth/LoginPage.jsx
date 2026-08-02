@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/common/Navbar';
-import { LogIn, ShieldCheck, Building2, Loader2 } from 'lucide-react';
+import { LogIn, ShieldCheck, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 
 const LoginPage = () => {
   const [activeTab, setActiveTab] = useState('admin');
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, user } = useAuth();
@@ -126,22 +127,33 @@ const LoginPage = () => {
                   />
                 </div>
 
-                <div>
+                <div className="relative">
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-sm font-medium text-muted">Password</label>
-                    <a href="#" className="text-sm font-medium text-blue-500 hover:text-blue-400">
+                    <Link to="/forgot-password" className="text-sm font-medium text-blue-500 hover:text-blue-400">
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
                   <input
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    className="block w-full px-4 py-3 bg-surface2 border border-theme rounded-xl text-primary placeholder-subtle text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="block w-full px-4 py-3 bg-surface2 border border-theme rounded-xl text-primary placeholder-subtle text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors pr-10"
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleChange}
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-primary hover:text-blue-400"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
 
                 <div className="flex items-center">
@@ -177,7 +189,15 @@ const LoginPage = () => {
             </div>
 
             {/* Footer hint */}
-            <div className="bg-surface2/50 px-8 py-5 border-t border-theme text-center">
+            <div className="bg-surface2/50 px-8 py-5 border-t border-theme text-center space-y-2">
+              {!isAdmin && (
+                <p className="text-sm text-muted">
+                  New Pharmacist?{' '}
+                  <Link to="/register" className="font-semibold text-emerald-500 hover:text-emerald-400">
+                    Register your pharmacy
+                  </Link>
+                </p>
+              )}
               <p className="text-sm text-muted">
                 Donor or Patient?{' '}
                 <Link to="/" className="font-semibold text-blue-500 hover:text-blue-400">

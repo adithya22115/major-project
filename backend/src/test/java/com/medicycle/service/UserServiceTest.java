@@ -128,7 +128,7 @@ class UserServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
-        Map<String, Object> result = userService.updateProfileFromMap(1L, body);
+        userService.updateProfileFromMap(1L, body);
 
         assertEquals("Map Updated", testUser.getName());
         assertEquals("Bangalore", testUser.getCity());
@@ -148,7 +148,7 @@ class UserServiceTest {
         when(pincodeLookupService.lookup("560001")).thenReturn(lookupResult);
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
-        Map<String, Object> result = userService.updatePincode(1L, "560001");
+        userService.updatePincode(1L, "560001");
 
         assertEquals("560001", testUser.getPincode());
         assertEquals("Bengaluru", testUser.getCity());

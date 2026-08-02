@@ -16,6 +16,7 @@ const PharmacyVerification = () => {
   const [submitting, setSubmitting] = useState(false);
   const [existingVerification, setExistingVerification] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [formData, setFormData] = useState({
     pharmacyName: '',
@@ -29,33 +30,49 @@ const PharmacyVerification = () => {
     documentUrls: [],
   });
 
-  useEffect(() => {
-    const fetchVerification = async () => {
-      try {
-        const data = await getMyVerification();
-        setExistingVerification(data);
-        if (data.status === 'REJECTED') {
-          setFormData(prev => ({
-            ...prev,
-            pharmacyName: data.pharmacyName || '',
-            licenseNumber: data.licenseNumber || '',
-            pharmacyAddress: data.pharmacyAddress || '',
-            city: data.city || user?.city || '',
-            state: data.state || user?.state || '',
-            pincode: data.pincode || user?.pincode || '',
-            contactPhone: data.contactPhone || '',
-            contactEmail: data.contactEmail || user?.email || '',
-            documentUrls: data.documentUrls || [],
-          }));
-        }
-      } catch (_err) {
-        // No existing verification - fresh form
-      } finally {
-        setLoading(false);
+  const fetchVerification = async () => {
+    try {
+      const data = await getMyVerification();
+      setExistingVerification(data);
+      if (data.status === 'REJECTED') {
+        setFormData(prev => ({
+          ...prev,
+          pharmacyName: data.pharmacyName || '',
+          licenseNumber: data.licenseNumber || '',
+          pharmacyAddress: data.pharmacyAddress || '',
+          city: data.city || user?.city || '',
+          state: data.state || user?.state || '',
+          pincode: data.pincode || user?.pincode || '',
+          contactPhone: data.contactPhone || '',
+          contactEmail: data.contactEmail || user?.email || '',
+          documentUrls: data.documentUrls || [],
+        }));
       }
-    };
-    fetchVerification();
+    } catch (_err) {
+      // No existing verification - fresh form
+    }
+  };
+
+  useEffect(() => {
+    fetchVerification().finally(() => setLoading(false));
   }, [user]);
+
+  const handleRefreshStatus = async () => {
+    setRefreshing(true);
+    try {
+      const data = await getMyVerification();
+      setExistingVerification(data);
+      toast.success('Status refreshed');
+      if (data?.status === 'APPROVED') {
+        toast.success('🎉 Your pharmacy is now verified! Reloading...');
+        setTimeout(() => window.location.reload(), 1200);
+      }
+    } catch (_err) {
+      toast.error('Failed to refresh status');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -174,28 +191,47 @@ const PharmacyVerification = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-primary">Pharmacy Verification</h1>
-        <p className="text-muted mt-1">
-          Submit your government-issued pharmacy license and documents for admin verification.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Pharmacy Verification</h1>
+          <p className="text-muted mt-1">
+            Submit your government-issued pharmacy license and documents for admin verification.
+          </p>
+        </div>
+        <button
+          onClick={handleRefreshStatus}
+          disabled={refreshing}
+          className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-400 border border-blue-500/40 rounded-xl hover:bg-blue-500/10 transition-colors disabled:opacity-60"
+        >
+          {refreshing ? <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : '🔄'}
+          {refreshing ? 'Checking...' : 'Check Status'}
+        </button>
       </div>
 
-      {statusBanner()}
-
-      {isApproved && (
-        <div className="bg-surface border border-theme rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-primary mb-4">Your Verification Details</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted">Pharmacy:</span> <span className="text-primary font-medium">{existingVerification.pharmacyName}</span></div>
-            <div><span className="text-muted">License:</span> <span className="text-primary font-medium">{existingVerification.licenseNumber}</span></div>
-            <div><span className="text-muted">Status:</span> <span className="text-emerald-400 font-medium">Approved</span></div>
-            <div><span className="text-muted">Reviewed:</span> <span className="text-primary font-medium">{existingVerification.reviewedAt ? new Date(existingVerification.reviewedAt).toLocaleDateString() : 'N/A'}</span></div>
+      {/* Status Check Section */}
+      <div id="status-check-section">
+        {statusBanner()}
+        {(isApproved || isPending) && existingVerification && (
+          <div className="bg-surface border border-theme rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-primary mb-4">Your Verification Details</h2>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted">Pharmacy:</span> <span className="text-primary font-medium">{existingVerification.pharmacyName}</span></div>
+              <div><span className="text-muted">License:</span> <span className="text-primary font-medium">{existingVerification.licenseNumber}</span></div>
+              <div><span className="text-muted">Address:</span> <span className="text-primary font-medium">{existingVerification.pharmacyAddress || 'N/A'}</span></div>
+              <div><span className="text-muted">Contact:</span> <span className="text-primary font-medium">{existingVerification.contactPhone || 'N/A'}</span></div>
+              <div><span className="text-muted">Status:</span> <span className={isApproved ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>{isApproved ? 'Approved ✓' : 'Pending Review...'}</span></div>
+              {existingVerification.submittedAt && <div><span className="text-muted">Submitted:</span> <span className="text-primary font-medium">{new Date(existingVerification.submittedAt).toLocaleDateString()}</span></div>}
+            </div>
+            {isApproved && (
+              <a href="/pharmacy/dashboard" className="mt-4 inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors">
+                Go to Pharmacy Dashboard →
+              </a>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {(isPending || !existingVerification) && (
+      {!isPending && !isApproved && (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-surface border border-theme rounded-xl p-6">
             <div className="flex items-center gap-2 mb-5">
@@ -237,7 +273,7 @@ const PharmacyVerification = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>State</label>
-                  <input name="state" type="text" className={inputClass} value={formData.state} onChange={handleChange} />
+                  <input name="state" type="text" required className={inputClass} value={formData.state} onChange={handleChange} />
                 </div>
                 <div>
                   <label className={labelClass}>Pincode</label>

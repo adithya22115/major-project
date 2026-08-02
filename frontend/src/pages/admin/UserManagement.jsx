@@ -5,7 +5,7 @@ import EmptyState from '../../components/common/EmptyState';
 import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
 import { toast } from 'react-hot-toast';
-import { Users, CheckCircle, Shield } from 'lucide-react';
+import { Users, CheckCircle, Shield, XCircle, UserCheck, Ban } from 'lucide-react';
 
 const roleBadge = {
   DONOR:     'bg-blue-500/15 text-blue-400 border-blue-500/30',
@@ -40,7 +40,7 @@ const UserManagement = () => {
     try {
       await updateUserStatus(id, { isVerified });
       setUsers(users.map(u => u.id === id ? { ...u, isVerified } : u));
-      toast.success(`User ${isVerified ? 'verified' : 'suspended'} successfully`);
+      toast.success(`User ${isVerified ? 'activated' : 'suspended'} successfully`);
     } catch {
       toast.error('Failed to update user status');
     }
@@ -62,7 +62,7 @@ const UserManagement = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-primary">User Management</h1>
-        <p className="text-muted mt-1">Manage accounts and verify pharmacy registrations.</p>
+        <p className="text-muted mt-1">Manage user accounts. Donors and recipients are auto-verified. Pharmacies require document verification.</p>
       </div>
 
       <div className="bg-surface rounded-xl shadow-sm border border-theme overflow-hidden">
@@ -132,11 +132,11 @@ const UserManagement = () => {
                     <td className="px-6 py-4">
                       {u.isVerified ? (
                         <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-medium">
-                          <CheckCircle className="h-4 w-4" /> Verified
+                          <CheckCircle className="h-4 w-4" /> Active
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-medium">
-                          <Shield className="h-4 w-4" /> Pending
+                        <span className="inline-flex items-center gap-1 text-red-400 text-xs font-medium">
+                          <XCircle className="h-4 w-4" /> Suspended
                         </span>
                       )}
                     </td>
@@ -146,19 +146,24 @@ const UserManagement = () => {
                     <td className="px-6 py-4">
                       {u.role !== 'ADMIN' && (
                         <div className="flex gap-2">
-                          {!u.isVerified ? (
+                          {u.role === 'PHARMACY' ? (
+                            /* Pharmacies are managed via Pharmacy Verifications page */
+                            <span className="text-xs text-muted italic">Via Verifications</span>
+                          ) : u.isVerified ? (
                             <button
-                              onClick={() => handleStatusChange(u.id, true)}
-                              className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded border border-emerald-500/30 text-xs font-medium transition-colors"
+                              onClick={() => handleStatusChange(u.id, false)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded border border-red-500/30 text-xs font-medium transition-colors"
                             >
-                              Verify
+                              <Ban className="h-3 w-3" />
+                              Suspend
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleStatusChange(u.id, false)}
-                              className="px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded border border-red-500/30 text-xs font-medium transition-colors"
+                              onClick={() => handleStatusChange(u.id, true)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded border border-emerald-500/30 text-xs font-medium transition-colors"
                             >
-                              Suspend
+                              <UserCheck className="h-3 w-3" />
+                              Activate
                             </button>
                           )}
                         </div>

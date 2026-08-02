@@ -56,6 +56,6 @@ public class TwoFactorService {
     }
 
     public boolean isTotpEnabled(User user) {
-        return user.isTwoFactorEnabled() && user.getTwoFactorSecret() != null;
+        return Boolean.TRUE.equals(user.getIsTwoFactorEnabled()) && user.getTwoFactorSecret() != null;
     }
 }

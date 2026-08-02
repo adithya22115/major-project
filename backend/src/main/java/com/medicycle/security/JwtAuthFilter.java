@@ -39,7 +39,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (path.equals("/api/auth/login") || path.equals("/api/auth/register") ||
                 path.equals("/api/auth/guest-register") || path.equals("/api/auth/verify") ||
-                path.equals("/api/auth/resend-verification")) {
+                path.equals("/api/auth/resend-verification") ||
+                path.equals("/api/auth/forgot-password") || path.equals("/api/auth/reset-password")) {
             String clientIp = getClientIp(request);
             ConsumptionProbe probe = rateLimiterService.tryConsumeAuth(clientIp);
             if (!probe.isConsumed()) {

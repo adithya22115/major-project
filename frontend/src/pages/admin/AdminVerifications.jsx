@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getPendingVerifications, getAllVerificationsByStatus, approveVerification, rejectVerification } from '../../services/verificationService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, FileText, ExternalLink, ChevronDown, ChevronUp, Shield } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, FileText, ExternalLink, ChevronDown, ChevronUp, Shield, Image, FileIcon, ZoomIn, X } from 'lucide-react';
 
 const AdminVerifications = () => {
   const [loading, setLoading] = useState(true);
@@ -12,6 +12,7 @@ const AdminVerifications = () => {
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectRemarks, setRejectRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const fetchVerifications = async (status) => {
     setLoading(true);
@@ -61,6 +62,15 @@ const AdminVerifications = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const isImageUrl = (url) => {
+    const lower = url.toLowerCase();
+    return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp');
+  };
+
+  const isPdfUrl = (url) => {
+    return url.toLowerCase().endsWith('.pdf');
   };
 
   const tabs = [
@@ -121,6 +131,7 @@ const AdminVerifications = () => {
                       <h3 className="text-lg font-semibold text-primary">{v.pharmacyName}</h3>
                       <p className="text-sm text-muted">{v.userName} • {v.userEmail}</p>
                       <p className="text-xs text-muted mt-1">License: {v.licenseNumber}</p>
+                      <p className="text-xs text-muted mt-1">Documents: {v.documentUrls?.length || 0}</p>
                     </div>
                   </div>
                   <button
@@ -144,25 +155,78 @@ const AdminVerifications = () => {
                     <div><span className="text-muted block text-xs">Submitted</span><span className="text-primary">{v.submittedAt ? new Date(v.submittedAt).toLocaleString() : 'N/A'}</span></div>
                   </div>
 
-                  {/* Documents */}
+                  {/* Documents with inline previews */}
                   {v.documentUrls && v.documentUrls.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-muted mb-2">Documents ({v.documentUrls.length})</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <p className="text-sm font-medium text-muted mb-3">Uploaded Documents ({v.documentUrls.length})</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {v.documentUrls.map((url, idx) => (
-                          <a
+                          <div
                             key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 bg-surface2 border border-theme rounded-lg px-3 py-2.5 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors"
+                            className="bg-surface2 border border-theme rounded-xl overflow-hidden group"
                           >
-                            <FileText className="w-4 h-4 flex-shrink-0" />
-                            <span className="truncate flex-1">{url.split('/').pop()}</span>
-                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                          </a>
+                            {isImageUrl(url) ? (
+                              /* Image preview */
+                              <div className="relative">
+                                <img
+                                  src={url}
+                                  alt={`Document ${idx + 1}`}
+                                  className="w-full h-48 object-cover bg-surface2"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="hidden items-center justify-center h-48 bg-surface2">
+                                  <div className="text-center">
+                                    <Image className="w-8 h-8 text-muted/40 mx-auto mb-2" />
+                                    <p className="text-xs text-muted">Failed to load image</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => setLightboxUrl(url)}
+                                  className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                >
+                                  <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
+                                </button>
+                              </div>
+                            ) : isPdfUrl(url) ? (
+                              /* PDF preview */
+                              <div className="h-48 flex flex-col items-center justify-center bg-red-500/5 border-b border-theme">
+                                <FileText className="w-12 h-12 text-red-400 mb-2" />
+                                <p className="text-xs font-medium text-red-400">PDF Document</p>
+                              </div>
+                            ) : (
+                              /* Generic file */
+                              <div className="h-48 flex flex-col items-center justify-center bg-blue-500/5 border-b border-theme">
+                                <FileIcon className="w-12 h-12 text-blue-400 mb-2" />
+                                <p className="text-xs font-medium text-blue-400">Document</p>
+                              </div>
+                            )}
+                            <div className="p-3 flex items-center justify-between">
+                              <span className="text-xs text-muted truncate flex-1 mr-2">
+                                {url.split('/').pop()}
+                              </span>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap"
+                              >
+                                Open <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* No documents warning */}
+                  {(!v.documentUrls || v.documentUrls.length === 0) && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
+                      <Shield className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                      <p className="text-sm text-amber-400">No documents were uploaded with this verification request.</p>
                     </div>
                   )}
 
@@ -235,6 +299,27 @@ const AdminVerifications = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Document preview"
+            className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

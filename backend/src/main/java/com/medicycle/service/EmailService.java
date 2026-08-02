@@ -14,7 +14,10 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
-    @Value("${app.base-url:http://localhost:8085}")
+    @Value("${spring.mail.username:noreply@medicycle.com}")
+    private String fromEmail;
+
+    @Value("${app.base-url:http://localhost:5173}")
     private String baseUrl;
 
     public void sendVerificationEmail(String to, String name, String token) {
@@ -39,6 +42,28 @@ public class EmailService {
         sendEmail(to, subject, body);
     }
 
+    public void sendPasswordResetEmail(String to, String name, String token) {
+        String resetLink = baseUrl + "/reset-password?token=" + token;
+        String subject = "Reset your MediCycle password";
+        String body = String.format("""
+                Hello %s,
+                
+                We received a request to reset your MediCycle password.
+                
+                Click the link below to set a new password:
+                %s
+                
+                This link will expire in 1 hour.
+                
+                If you did not request a password reset, please ignore this email. Your password will remain unchanged.
+                
+                Best regards,
+                MediCycle Team
+                """, name, resetLink);
+
+        sendEmail(to, subject, body);
+    }
+
     public void sendTwoFactorCodeEmail(String to, String code) {
         String subject = "Your MediCycle 2FA Code";
         String body = String.format("""
@@ -53,8 +78,19 @@ public class EmailService {
     }
 
     private void sendEmail(String to, String subject, String text) {
+        if (mailSender == null) {
+            log.warn("JavaMailSender is not configured. Email will NOT be delivered.");
+            log.info("=== EMAIL (console fallback — mail not configured) ===");
+            log.info("To: {}", to);
+            log.info("Subject: {}", subject);
+            log.info("Body:\n{}", text);
+            log.info("=====================================================");
+            return;
+        }
+
         try {
             SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
             message.setTo(to);
             message.setSubject(subject);
             message.setText(text);
@@ -62,12 +98,13 @@ public class EmailService {
             log.info("Email sent successfully to: {}", to);
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
-            log.warn("Falling back to console logging for email verification");
-            log.info("=== EMAIL (console fallback) ===");
+            log.warn("Falling back to console logging for email content");
+            log.info("=== EMAIL (console fallback — send failed) ===");
             log.info("To: {}", to);
             log.info("Subject: {}", subject);
             log.info("Body:\n{}", text);
-            log.info("===============================");
+            log.info("===============================================");
         }
     }
 }
+

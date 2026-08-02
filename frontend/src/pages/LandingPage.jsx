@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
 import { Heart, ShieldCheck, Package, Users, ArrowRight, Building2, TrendingUp, MapPin, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import HealthAssistantWidget from '../components/common/HealthAssistantWidget';
 import { getCurrentPosition } from '../utils/geo';
 
 const GuestModal = ({ role, onClose, onSuccess }) => {
@@ -207,6 +208,7 @@ const GuestModal = ({ role, onClose, onSuccess }) => {
 const LandingPage = () => {
   const [guestModal, setGuestModal] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleGuestSuccess = (role) => {
     setGuestModal(null);
@@ -219,33 +221,43 @@ const LandingPage = () => {
       <Navbar onOpenGuest={(role) => setGuestModal(role)} />
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 lg:pt-32 lg:pb-40 overflow-hidden bg-gradient-to-b from-blue-950/40 to-transparent dark:from-blue-950/60">
+      <section className="relative pt-20 pb-32 lg:pt-32 lg:pb-40 overflow-hidden bg-gradient-to-b from-blue-950/5 dark:from-blue-950/60 to-transparent">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl font-extrabold text-primary tracking-tight mb-6 leading-tight">
-              Reduce Medicine Waste.<br />
-              <span className="text-blue-500">Help Someone in Need.</span>
-            </h1>
-            <p className="mt-4 text-xl text-muted mb-10 max-w-2xl mx-auto leading-relaxed">
-              MediCycle connects medicine donors with verified pharmacies and patients in need.
-              Every donation is verified for safety before redistribution.
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button
-                onClick={() => setGuestModal('DONOR')}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all shadow-lg shadow-blue-600/30 hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
-              >
-                Donate Medicine <ArrowRight className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setGuestModal('RECIPIENT')}
-                className="bg-surface hover:bg-surface2 text-blue-500 border-2 border-blue-500/60 hover:border-blue-400 font-semibold px-8 py-4 rounded-xl text-lg transition-all flex items-center justify-center"
-              >
-                Find Medicines
-              </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <h1 className="text-5xl md:text-6xl font-extrabold text-primary tracking-tight mb-6 leading-tight">
+                Reduce Medicine Waste.<br />
+                <span className="text-blue-500">Help Someone in Need.</span>
+              </h1>
+              <p className="mt-4 text-xl text-muted mb-10 leading-relaxed">
+                MediCycle connects medicine donors with verified pharmacies and patients in need.
+                Every donation is verified for safety before redistribution.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
+                <button
+                  onClick={() => setGuestModal('DONOR')}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all shadow-lg shadow-blue-600/30 hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                >
+                  Donate Medicine <ArrowRight className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setGuestModal('RECIPIENT')}
+                  className="bg-surface hover:bg-surface2 text-blue-500 border-2 border-blue-500/60 hover:border-blue-400 font-semibold px-8 py-4 rounded-xl text-lg transition-all flex items-center justify-center"
+                >
+                  Find Medicines
+                </button>
+              </div>
+            </div>
+            <div className="relative mt-12 lg:mt-0 lg:ml-10 group">
+              <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
+              <img 
+                src="/assets/images/hero_pharmacist.png" 
+                alt="Professional Pharmacist" 
+                className="relative rounded-2xl shadow-2xl border border-theme object-cover w-full h-[500px] transform group-hover:scale-[1.02] transition-transform duration-500"
+              />
             </div>
           </div>
         </div>
@@ -268,6 +280,8 @@ const LandingPage = () => {
           ))}
         </div>
       </section>
+
+
 
       {/* How It Works */}
       <section id="how-it-works" className="py-24 bg-page">
@@ -311,6 +325,48 @@ const LandingPage = () => {
                 <p className="text-muted">{desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Safety & Medicines Showcase */}
+      <section className="py-24 bg-surface2/30 dark:bg-surface2/20 border-y border-theme">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="order-2 lg:order-1">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-6">
+                Safety is Our <span className="text-emerald-500">Top Priority</span>
+              </h2>
+              <p className="text-lg text-muted mb-8 leading-relaxed">
+                We understand that handling medications requires the highest level of care. 
+                Our platform enforces strict protocols to ensure every single pill distributed is safe and authentic.
+              </p>
+              
+              <ul className="space-y-6">
+                {[
+                  'Certified Pharmacist Review for every donation',
+                  'Strict Expiration Date Tracking & Enforcement',
+                  'Sealed Packaging Verification requirements',
+                  'Secure & Anonymous Patient Matching'
+                ].map((text, i) => (
+                  <li key={i} className="flex items-start gap-4">
+                    <div className="mt-1 flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    </div>
+                    <span className="text-primary font-medium">{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="order-1 lg:order-2 relative group">
+              <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
+              <img 
+                src="/assets/images/medicine_pills.png" 
+                alt="Organized Medicines" 
+                className="relative rounded-2xl shadow-xl border border-theme object-cover w-full h-[450px] transform group-hover:scale-[1.02] transition-transform duration-500"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -404,6 +460,9 @@ const LandingPage = () => {
           onSuccess={() => handleGuestSuccess(guestModal)}
         />
       )}
+
+      {/* AI Health Assistant Floating Widget */}
+      <HealthAssistantWidget />
     </div>
   );
 };

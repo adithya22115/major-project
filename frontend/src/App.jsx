@@ -10,6 +10,9 @@ import Layout from './components/common/Layout';
 // Public pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Donor pages
@@ -89,8 +92,17 @@ function App() {
             (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <LoginPage />
           } />
 
-          {/* Not Found */}
-          <Route path="*" element={<NotFoundPage />} />
+          {/* Forgot Password */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+          {/* Reset Password */}
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          {/* Register — public, redirects if already logged in */}
+          <Route path="/register" element={
+            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <RegisterPage />
+          } />
+
 
           {/* Authenticated Routes wrapped in Layout */}
           <Route element={<Layout />}>
@@ -152,6 +164,8 @@ function App() {
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+          {/* Not Found */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

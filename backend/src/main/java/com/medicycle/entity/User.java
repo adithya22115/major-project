@@ -44,14 +44,15 @@ public class User {
     @Builder.Default
     private boolean isVerified = false;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "boolean default false")
     @Builder.Default
-    private boolean isTwoFactorEnabled = false;
+    private Boolean isTwoFactorEnabled = false;
 
     private String twoFactorSecret;
 
+    @Column(columnDefinition = "integer default 0")
     @Builder.Default
-    private int failedLoginAttempts = 0;
+    private Integer failedLoginAttempts = 0;
 
     private LocalDateTime lockedUntil;
 
