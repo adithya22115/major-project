@@ -20,8 +20,8 @@ class HealthAssistantServiceTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         healthAssistantService = new HealthAssistantService(
-                "test-api-key",
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                "test-hf-key",
+                "https://api-inference.huggingface.co/models/test-model",
                 1024,
                 objectMapper
         );
@@ -67,22 +67,17 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseGeminiResponse_shouldExtractConditions() throws Exception {
+    void parseHuggingFaceResponse_shouldExtractConditions() throws Exception {
+        // Simulate HF response: array with generated_text containing the structured output
         String fakeResponse = """
-                {
-                  "candidates": [{
-                    "content": {
-                      "parts": [{
-                        "text": "I understand you have a headache.\\n\\nPOSSIBLE_CONDITIONS: [Tension Headache, Migraine, Sinusitis]\\nSEVERITY: LOW\\n\\nPlease rest and stay hydrated."
-                      }]
-                    }
-                  }]
-                }
+                [{
+                  "generated_text": "I understand you have a headache.\\n\\nPOSSIBLE_CONDITIONS: [Tension Headache, Migraine, Sinusitis]\\nSEVERITY: LOW\\n\\nPlease rest and stay hydrated."
+                }]
                 """;
 
-        // Use reflection to call the private parseGeminiResponse method
+        // Use reflection to call the private parseHuggingFaceResponse method
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseGeminiResponse", fakeResponse);
+                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
 
         assertNotNull(response);
         assertEquals(3, response.getPossibleConditions().size());
@@ -94,21 +89,15 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseGeminiResponse_shouldDetectHighSeverityAndSeekDoctor() throws Exception {
+    void parseHuggingFaceResponse_shouldDetectHighSeverityAndSeekDoctor() throws Exception {
         String fakeResponse = """
-                {
-                  "candidates": [{
-                    "content": {
-                      "parts": [{
-                        "text": "This sounds serious.\\n\\nPOSSIBLE_CONDITIONS: [Pneumonia, COVID-19]\\nSEVERITY: HIGH\\nSEEK_DOCTOR: YES\\n\\nPlease see a doctor immediately."
-                      }]
-                    }
-                  }]
-                }
+                [{
+                  "generated_text": "This sounds serious.\\n\\nPOSSIBLE_CONDITIONS: [Pneumonia, COVID-19]\\nSEVERITY: HIGH\\nSEEK_DOCTOR: YES\\n\\nPlease see a doctor immediately."
+                }]
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseGeminiResponse", fakeResponse);
+                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
 
         assertNotNull(response);
         assertEquals(2, response.getPossibleConditions().size());
@@ -117,21 +106,15 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseGeminiResponse_shouldHandleMediumSeverityWithDoctorMention() throws Exception {
+    void parseHuggingFaceResponse_shouldHandleMediumSeverityWithDoctorMention() throws Exception {
         String fakeResponse = """
-                {
-                  "candidates": [{
-                    "content": {
-                      "parts": [{
-                        "text": "Based on your symptoms, you should consult a doctor if they persist.\\n\\nPOSSIBLE_CONDITIONS: [Gastritis]\\nSEVERITY: MEDIUM"
-                      }]
-                    }
-                  }]
-                }
+                [{
+                  "generated_text": "Based on your symptoms, you should consult a doctor if they persist.\\n\\nPOSSIBLE_CONDITIONS: [Gastritis]\\nSEVERITY: MEDIUM"
+                }]
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseGeminiResponse", fakeResponse);
+                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
 
         assertNotNull(response);
         assertEquals("MEDIUM", response.getSeverity());
@@ -140,15 +123,13 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseGeminiResponse_shouldHandleEmptyCandidates() throws Exception {
+    void parseHuggingFaceResponse_shouldHandleEmptyArray() throws Exception {
         String fakeResponse = """
-                {
-                  "candidates": []
-                }
+                []
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseGeminiResponse", fakeResponse);
+                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
 
         assertNotNull(response);
         assertNotNull(response.getAiResponse());
@@ -157,21 +138,15 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseGeminiResponse_shouldHandleNoConditions() throws Exception {
+    void parseHuggingFaceResponse_shouldHandleNoConditions() throws Exception {
         String fakeResponse = """
-                {
-                  "candidates": [{
-                    "content": {
-                      "parts": [{
-                        "text": "I need more information about your symptoms. Can you describe them in more detail?\\nSEVERITY: LOW"
-                      }]
-                    }
-                  }]
-                }
+                [{
+                  "generated_text": "I need more information about your symptoms. Can you describe them in more detail?\\nSEVERITY: LOW"
+                }]
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseGeminiResponse", fakeResponse);
+                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
 
         assertNotNull(response);
         assertTrue(response.getPossibleConditions().isEmpty());
@@ -179,21 +154,15 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseGeminiResponse_shouldDefaultToMediumSeverity_whenNotParseable() throws Exception {
+    void parseHuggingFaceResponse_shouldDefaultToMediumSeverity_whenNotParseable() throws Exception {
         String fakeResponse = """
-                {
-                  "candidates": [{
-                    "content": {
-                      "parts": [{
-                        "text": "You should rest and drink plenty of water."
-                      }]
-                    }
-                  }]
-                }
+                [{
+                  "generated_text": "You should rest and drink plenty of water."
+                }]
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseGeminiResponse", fakeResponse);
+                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
 
         assertNotNull(response);
         // No SEVERITY marker, should default to MEDIUM
@@ -201,34 +170,32 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void buildGeminiRequest_shouldCreateValidJson() throws Exception {
+    void buildPromptForHF_shouldCreateCorrectPrompt() throws Exception {
         SymptomCheckRequest request = SymptomCheckRequest.builder()
                 .message("I have a headache")
                 .age(30)
                 .gender("female")
                 .build();
 
-        String jsonResult = (String) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "buildGeminiRequest", request);
+        String result = (String) ReflectionTestUtils.invokeMethod(
+                healthAssistantService, "buildPromptForHF", request);
 
-        assertNotNull(jsonResult);
-        // Verify it's valid JSON
-        var node = objectMapper.readTree(jsonResult);
-        assertTrue(node.has("system_instruction"));
-        assertTrue(node.has("contents"));
-        assertTrue(node.has("generationConfig"));
-        assertTrue(node.has("safetySettings"));
-
-        // Check user message includes age and gender
-        String userText = node.get("contents")
-                .get(0).get("parts").get(0).get("text").asText();
-        assertTrue(userText.contains("I have a headache"));
-        assertTrue(userText.contains("[Patient age: 30]"));
-        assertTrue(userText.contains("[Patient gender: female]"));
+        assertNotNull(result);
+        // Should contain the system prompt, user message, age, gender
+        assertTrue(result.contains("You are MediCycle Health Assistant"));
+        assertTrue(result.contains("I have a headache"));
+        assertTrue(result.contains("[Patient age: 30]"));
+        assertTrue(result.contains("[Patient gender: female]"));
+        // Check that conversation history is not present (null)
+        // Ensure there is no extra ": " before user message? Actually our format adds role: message
+        // For no history, we expect:
+        // SYSTEM_PROMPT + newline + newline + "User: I have a headache\n[Patient age: 30]\n[Patient gender: female]"
+        // We'll just check that "User:" appears.
+        assertTrue(result.contains("User: I have a headache"));
     }
 
     @Test
-    void buildGeminiRequest_shouldIncludeConversationHistory() throws Exception {
+    void buildPromptForHF_shouldIncludeConversationHistory() throws Exception {
         SymptomCheckRequest request = SymptomCheckRequest.builder()
                 .message("It's getting worse")
                 .conversationHistory(List.of(
@@ -243,16 +210,14 @@ class HealthAssistantServiceTest {
                 ))
                 .build();
 
-        String jsonResult = (String) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "buildGeminiRequest", request);
+        String result = (String) ReflectionTestUtils.invokeMethod(
+                healthAssistantService, "buildPromptForHF", request);
 
-        var node = objectMapper.readTree(jsonResult);
-        var contents = node.get("contents");
-        // History (2 messages) + current message = 3
-        assertEquals(3, contents.size());
-        assertEquals("user", contents.get(0).get("role").asText());
-        assertEquals("model", contents.get(1).get("role").asText());
-        assertEquals("user", contents.get(2).get("role").asText());
+        assertNotNull(result);
+        // Should contain the conversation history lines
+        assertTrue(result.contains("User: I have a fever"));
+        assertTrue(result.contains("Assistant: How high is your fever?"));
+        assertTrue(result.contains("User: It's getting worse"));
     }
 
     @Test

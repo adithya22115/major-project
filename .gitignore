@@ -38,6 +38,7 @@ backend/uploads/
 backend/.mvn/wrapper/maven-wrapper.jar
 # Application configuration (contains sensitive data)
 backend/src/main/resources/application.properties
+backend/src/main/resources/application.properties.example
 backend/src/main/resources/data.sql
 backend/src/test/resources/application-test.properties
 

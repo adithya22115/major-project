@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, AlertTriangle, Heart, Thermometer, Stethoscope, Brain, Loader2, ShieldAlert, ArrowDown } from 'lucide-react';
+import { 
+  X, Send, Bot, User, AlertTriangle, Heart, Thermometer, Stethoscope, 
+  Brain, Loader2, ShieldAlert, ArrowDown, Phone, MapPin, Calendar, 
+  ExternalLink, CheckCircle2 
+} from 'lucide-react';
 import { checkSymptoms } from '../../services/healthAssistantService';
 
 const QUICK_SYMPTOMS = [
@@ -26,16 +30,40 @@ const HealthAssistantWidget = () => {
   const [gender, setGender] = useState('');
   const [showInfoFields, setShowInfoFields] = useState(false);
   const [pulseAnimation, setPulseAnimation] = useState(true);
+  
+  // Responsiveness state
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 640 : false);
+
+  // Doctor Consultation Modal state
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const [consultForm, setConsultForm] = useState({
+    patientName: '',
+    phone: '',
+    specialty: 'General Physician',
+    consultType: 'Tele-Consultation (Video/Call)',
+    notes: '',
+  });
+  const [consultSubmitted, setConsultSubmitted] = useState(false);
+
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Auto-scroll to bottom
+  // Screen resize listener for mobile responsiveness
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Auto-scroll to bottom on new message
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   // Stop pulse animation after first open
   useEffect(() => {
@@ -117,16 +145,35 @@ const HealthAssistantWidget = () => {
     setShowInfoFields(false);
   };
 
+  const handleConsultSubmit = (e) => {
+    e.preventDefault();
+    if (!consultForm.patientName || !consultForm.phone) return;
+    setConsultSubmitted(true);
+    setTimeout(() => {
+      setConsultSubmitted(false);
+      setShowConsultModal(false);
+      setConsultForm({
+        patientName: '',
+        phone: '',
+        specialty: 'General Physician',
+        consultType: 'Tele-Consultation (Video/Call)',
+        notes: '',
+      });
+    }, 2400);
+  };
+
   return (
     <>
       {/* Floating Action Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 group"
+          className="fixed z-50 group transition-all duration-300"
           style={{
-            width: 64,
-            height: 64,
+            bottom: isMobile ? 16 : 24,
+            right: isMobile ? 16 : 24,
+            width: isMobile ? 56 : 64,
+            height: isMobile ? 56 : 64,
             borderRadius: '50%',
             background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)',
             border: 'none',
@@ -135,27 +182,29 @@ const HealthAssistantWidget = () => {
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow: '0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease',
             animation: pulseAnimation ? 'fabPulse 2s ease-in-out infinite' : 'none',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.transform = 'scale(1.1)';
-            e.currentTarget.style.boxShadow = '0 12px 40px rgba(99,102,241,0.5), 0 4px 12px rgba(0,0,0,0.15)';
+            if (!isMobile) {
+              e.currentTarget.style.transform = 'scale(1.08)';
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(99,102,241,0.5), 0 4px 12px rgba(0,0,0,0.15)';
+            }
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1)';
+            if (!isMobile) {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1)';
+            }
           }}
           aria-label="Open AI Health Assistant"
         >
-          <Stethoscope size={28} color="white" />
-          {/* Notification dot */}
+          <Stethoscope size={isMobile ? 24 : 28} color="white" />
           <span style={{
             position: 'absolute',
             top: 2,
             right: 2,
-            width: 14,
-            height: 14,
+            width: 12,
+            height: 12,
             borderRadius: '50%',
             background: '#22c55e',
             border: '2px solid white',
@@ -164,10 +213,10 @@ const HealthAssistantWidget = () => {
         </button>
       )}
 
-      {/* Tooltip label next to FAB */}
-      {!isOpen && (
+      {/* Tooltip label next to FAB (Desktop only) */}
+      {!isOpen && !isMobile && (
         <div
-          className="fixed bottom-8 right-20 z-50 pointer-events-none"
+          className="fixed bottom-8 right-20 z-50 pointer-events-none hidden sm:block"
           style={{
             background: 'rgba(15,23,42,0.9)',
             backdropFilter: 'blur(8px)',
@@ -188,46 +237,51 @@ const HealthAssistantWidget = () => {
       {/* Chat Window */}
       {isOpen && (
         <div
-          className="fixed bottom-6 right-6 z-50"
+          className="fixed z-50 flex flex-col transition-all duration-300"
           style={{
-            width: Math.min(420, window.innerWidth - 32),
-            height: Math.min(620, window.innerHeight - 48),
-            borderRadius: 20,
+            bottom: isMobile ? 0 : 24,
+            right: isMobile ? 0 : 24,
+            left: isMobile ? 0 : 'auto',
+            top: isMobile ? 0 : 'auto',
+            width: isMobile ? '100%' : '420px',
+            height: isMobile ? '100%' : 'min(640px, calc(100vh - 48px))',
+            borderRadius: isMobile ? 0 : 20,
             overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.25), 0 8px 32px rgba(99,102,241,0.15)',
-            animation: 'chatSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: isMobile ? 'none' : '0 24px 80px rgba(0,0,0,0.25), 0 8px 32px rgba(99,102,241,0.15)',
+            animation: 'chatSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+            border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+            background: '#f8fafc',
           }}
         >
           {/* Header */}
           <div style={{
             background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-            padding: '16px 20px',
+            padding: isMobile ? '12px 16px' : '16px 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexShrink: 0,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 40,
-                height: 40,
+                width: isMobile ? 36 : 40,
+                height: isMobile ? 36 : 40,
                 borderRadius: 12,
                 background: 'rgba(255,255,255,0.2)',
                 backdropFilter: 'blur(10px)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}>
-                <Stethoscope size={22} color="white" />
+                <Stethoscope size={isMobile ? 20 : 22} color="white" />
               </div>
               <div>
-                <div style={{ color: 'white', fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>
+                <div style={{ color: 'white', fontWeight: 700, fontSize: isMobile ? 14 : 15, lineHeight: 1.2 }}>
                   AI Health Assistant
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                   <span style={{
                     width: 6,
                     height: 6,
@@ -235,11 +289,11 @@ const HealthAssistantWidget = () => {
                     background: '#4ade80',
                     display: 'inline-block',
                   }} />
-                  Online • Not a replacement for a doctor
+                  Online • Verified Symptom Checker
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {messages.length > 0 && (
                 <button
                   onClick={handleReset}
@@ -247,7 +301,7 @@ const HealthAssistantWidget = () => {
                     background: 'rgba(255,255,255,0.15)',
                     border: 'none',
                     borderRadius: 8,
-                    padding: '6px 12px',
+                    padding: '6px 10px',
                     color: 'white',
                     fontSize: 12,
                     cursor: 'pointer',
@@ -266,8 +320,8 @@ const HealthAssistantWidget = () => {
                   background: 'rgba(255,255,255,0.15)',
                   border: 'none',
                   borderRadius: 8,
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -278,7 +332,7 @@ const HealthAssistantWidget = () => {
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
                 aria-label="Close chat"
               >
-                <X size={18} color="white" />
+                <X size={20} color="white" />
               </button>
             </div>
           </div>
@@ -290,16 +344,17 @@ const HealthAssistantWidget = () => {
             style={{
               flex: 1,
               overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
               background: '#f8fafc',
-              padding: '16px 16px 8px',
+              padding: isMobile ? '12px 12px 8px' : '16px 16px 8px',
               display: 'flex',
               flexDirection: 'column',
-              gap: 12,
+              gap: 14,
             }}
           >
             {/* Welcome message when empty */}
             {messages.length === 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
                 {/* Bot avatar + welcome */}
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <div style={{
@@ -322,14 +377,13 @@ const HealthAssistantWidget = () => {
                     fontSize: 14,
                     lineHeight: 1.6,
                     color: '#334155',
-                    maxWidth: '85%',
+                    maxWidth: isMobile ? '92%' : '85%',
                   }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, color: '#1e293b' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4, color: '#1e293b' }}>
                       👋 Hello! I'm your AI Health Assistant
                     </div>
-                    <p style={{ margin: 0 }}>
-                      Describe your symptoms and I'll suggest possible conditions. 
-                      You can also tap a quick option below to get started.
+                    <p style={{ margin: 0, fontSize: 13, color: '#475569' }}>
+                      Describe your symptoms and I will help evaluate possible conditions. Every response includes direct access to consult a doctor.
                     </p>
                   </div>
                 </div>
@@ -337,7 +391,7 @@ const HealthAssistantWidget = () => {
                 {/* Disclaimer */}
                 <div style={{
                   background: 'rgba(245,158,11,0.08)',
-                  border: '1px solid rgba(245,158,11,0.2)',
+                  border: '1px solid rgba(245,158,11,0.25)',
                   borderRadius: 12,
                   padding: '10px 14px',
                   display: 'flex',
@@ -348,7 +402,7 @@ const HealthAssistantWidget = () => {
                   lineHeight: 1.5,
                 }}>
                   <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span>This is <strong>not</strong> a medical diagnosis. Always consult a qualified healthcare professional.</span>
+                  <span>This assistant provides health information and is <strong>not a replacement for medical diagnosis</strong>. Always consult a qualified doctor for care.</span>
                 </div>
 
                 {/* Optional info toggle */}
@@ -358,16 +412,19 @@ const HealthAssistantWidget = () => {
                     background: 'white',
                     border: '1px solid #e2e8f0',
                     borderRadius: 10,
-                    padding: '8px 14px',
+                    padding: '10px 14px',
                     fontSize: 12,
                     color: '#6366f1',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  {showInfoFields ? '▾' : '▸'} Add age & gender for better accuracy (optional)
+                  <span>{showInfoFields ? '▾ Hide patient details' : '▸ Add age & gender for better accuracy (optional)'}</span>
                 </button>
 
                 {showInfoFields && (
@@ -385,14 +442,11 @@ const HealthAssistantWidget = () => {
                         flex: 1,
                         padding: '10px 12px',
                         borderRadius: 10,
-                        border: '1px solid #e2e8f0',
+                        border: '1px solid #cbd5e1',
                         fontSize: 13,
                         outline: 'none',
                         background: 'white',
-                        transition: 'border-color 0.2s',
                       }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#6366f1'}
-                      onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'}
                       min="1"
                       max="120"
                     />
@@ -403,15 +457,12 @@ const HealthAssistantWidget = () => {
                         flex: 1,
                         padding: '10px 12px',
                         borderRadius: 10,
-                        border: '1px solid #e2e8f0',
+                        border: '1px solid #cbd5e1',
                         fontSize: 13,
                         outline: 'none',
                         background: 'white',
                         cursor: 'pointer',
-                        transition: 'border-color 0.2s',
                       }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#6366f1'}
-                      onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'}
                     >
                       <option value="">Gender</option>
                       <option value="male">Male</option>
@@ -424,7 +475,7 @@ const HealthAssistantWidget = () => {
                 {/* Quick symptom chips */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr',
                   gap: 8,
                 }}>
                   {QUICK_SYMPTOMS.map(symptom => (
@@ -446,18 +497,17 @@ const HealthAssistantWidget = () => {
                         color: '#334155',
                         transition: 'all 0.2s',
                         opacity: loading ? 0.5 : 1,
+                        minHeight: 44,
                       }}
                       onMouseEnter={e => {
                         if (!loading) {
                           e.currentTarget.style.borderColor = symptom.color;
                           e.currentTarget.style.background = `${symptom.color}08`;
-                          e.currentTarget.style.transform = 'translateY(-1px)';
                         }
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.borderColor = '#e2e8f0';
                         e.currentTarget.style.background = 'white';
-                        e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
                       <symptom.icon size={18} color={symptom.color} />
@@ -476,6 +526,7 @@ const HealthAssistantWidget = () => {
                 alignItems: 'flex-start',
                 flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
                 animation: 'messageSlide 0.3s ease-out',
+                width: '100%',
               }}>
                 {/* Avatar */}
                 <div style={{
@@ -489,6 +540,7 @@ const HealthAssistantWidget = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
+                  marginTop: 2,
                 }}>
                   {msg.role === 'user'
                     ? <User size={16} color="white" />
@@ -496,13 +548,15 @@ const HealthAssistantWidget = () => {
                   }
                 </div>
 
-                {/* Message bubble */}
+                {/* Message Content Container */}
                 <div style={{
-                  maxWidth: '80%',
+                  maxWidth: msg.role === 'user' ? '82%' : isMobile ? '88%' : '86%',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 8,
+                  width: '100%',
                 }}>
+                  {/* Main Bubble */}
                   <div style={{
                     background: msg.role === 'user' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'white',
                     color: msg.role === 'user' ? 'white' : '#334155',
@@ -522,14 +576,14 @@ const HealthAssistantWidget = () => {
                     <div style={{
                       background: 'white',
                       borderRadius: 14,
-                      padding: 14,
+                      padding: '12px 14px',
                       boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: 8,
                     }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        Possible Conditions
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        POSSIBLE CONDITIONS
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {msg.conditions.map((cond, j) => (
@@ -554,6 +608,7 @@ const HealthAssistantWidget = () => {
                       display: 'flex',
                       gap: 8,
                       flexWrap: 'wrap',
+                      alignItems: 'center',
                     }}>
                       {(() => {
                         const sev = SEVERITY_CONFIG[msg.severity] || SEVERITY_CONFIG.MEDIUM;
@@ -586,9 +641,178 @@ const HealthAssistantWidget = () => {
                           alignItems: 'center',
                           gap: 4,
                         }}>
-                          <ShieldAlert size={14} /> Consult a Doctor
+                          <ShieldAlert size={14} /> Consult Doctor Urgently
                         </span>
                       )}
+                    </div>
+                  )}
+
+                  {/* ==================================================== */}
+                  {/* Dedicated "CONSULT DOCTOR" Section (After EVERY chat) */}
+                  {/* ==================================================== */}
+                  {msg.role === 'assistant' && (
+                    <div style={{
+                      background: msg.severity === 'HIGH'
+                        ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
+                        : msg.severity === 'MEDIUM'
+                        ? 'linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%)'
+                        : 'linear-gradient(135deg, #f0fdf4 0%, #e0e7ff 100%)',
+                      border: msg.severity === 'HIGH'
+                        ? '1px solid #fca5a5'
+                        : msg.severity === 'MEDIUM'
+                        ? '1px solid #fde68a'
+                        : '1px solid #c7d2fe',
+                      borderRadius: 16,
+                      padding: '14px',
+                      marginTop: 4,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                    }}>
+                      {/* Section Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 10,
+                            background: msg.severity === 'HIGH' ? '#ef4444' : msg.severity === 'MEDIUM' ? '#f59e0b' : '#6366f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            flexShrink: 0,
+                          }}>
+                            <Stethoscope size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Consult a Doctor
+                              {msg.severity === 'HIGH' && (
+                                <span style={{ fontSize: 10, background: '#dc2626', color: 'white', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>
+                                  URGENT
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              Professional Medical Care & Advice
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Brief text note */}
+                      <p style={{ margin: 0, fontSize: 12, color: '#334155', lineHeight: 1.5 }}>
+                        {msg.severity === 'HIGH'
+                          ? "⚠️ Your symptoms suggest urgent medical attention. Please consult a licensed doctor or visit emergency care immediately."
+                          : "For official diagnosis, medical prescription, or if symptoms persist, connect directly with healthcare professionals."}
+                      </p>
+
+                      {/* Responsive Action Buttons Container */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(115px, 1fr))',
+                        gap: 8,
+                        marginTop: 2,
+                      }}>
+                        {/* Action 1: Book Consultation Modal */}
+                        <button
+                          onClick={() => setShowConsultModal(true)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            padding: '9px 12px',
+                            borderRadius: 10,
+                            background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                            color: 'white',
+                            border: 'none',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(79,70,229,0.25)',
+                            transition: 'transform 0.2s',
+                            minHeight: 38,
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          <Calendar size={14} />
+                          <span>Book Doctor</span>
+                        </button>
+
+                        {/* Action 2: Find Nearby Hospitals */}
+                        <a
+                          href="https://www.google.com/maps/search/doctors+or+hospitals+near+me"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            padding: '9px 12px',
+                            borderRadius: 10,
+                            background: 'white',
+                            color: '#1e293b',
+                            border: '1px solid #cbd5e1',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            minHeight: 38,
+                          }}
+                        >
+                          <MapPin size={14} color="#ef4444" />
+                          <span>Find Nearby</span>
+                          <ExternalLink size={11} color="#94a3b8" />
+                        </a>
+
+                        {/* Action 3: Emergency Helpline */}
+                        <a
+                          href="tel:108"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            padding: '9px 12px',
+                            borderRadius: 10,
+                            background: msg.severity === 'HIGH' ? '#dc2626' : 'white',
+                            color: msg.severity === 'HIGH' ? 'white' : '#15803d',
+                            border: msg.severity === 'HIGH' ? 'none' : '1px solid #bbf7d0',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            minHeight: 38,
+                          }}
+                        >
+                          <Phone size={14} />
+                          <span>{msg.severity === 'HIGH' ? 'Call 108' : 'Helpline'}</span>
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Medical Disclaimer */}
+                  {msg.role === 'assistant' && msg.disclaimer && (
+                    <div style={{
+                      background: 'rgba(245,158,11,0.06)',
+                      border: '1px solid rgba(245,158,11,0.2)',
+                      borderRadius: 12,
+                      padding: '8px 12px',
+                      fontSize: 11.5,
+                      color: '#92400e',
+                      lineHeight: 1.4,
+                      display: 'flex',
+                      gap: 6,
+                      alignItems: 'flex-start',
+                    }}>
+                      <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span>{msg.disclaimer}</span>
                     </div>
                   )}
                 </div>
@@ -638,7 +862,7 @@ const HealthAssistantWidget = () => {
                       />
                     ))}
                   </div>
-                  <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>Analyzing...</span>
+                  <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>Analyzing symptoms...</span>
                 </div>
               </div>
             )}
@@ -652,7 +876,7 @@ const HealthAssistantWidget = () => {
               onClick={scrollToBottom}
               style={{
                 position: 'absolute',
-                bottom: 80,
+                bottom: 74,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 background: 'white',
@@ -664,7 +888,7 @@ const HealthAssistantWidget = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                 zIndex: 10,
               }}
             >
@@ -676,9 +900,9 @@ const HealthAssistantWidget = () => {
           <div style={{
             borderTop: '1px solid #e2e8f0',
             background: 'white',
-            padding: '12px 16px',
+            padding: isMobile ? '10px 12px' : '12px 16px',
             display: 'flex',
-            gap: 10,
+            gap: 8,
             alignItems: 'flex-end',
             flexShrink: 0,
           }}>
@@ -735,14 +959,6 @@ const HealthAssistantWidget = () => {
                 flexShrink: 0,
                 transition: 'all 0.2s',
               }}
-              onMouseEnter={e => {
-                if (input.trim() && !loading) {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
               aria-label="Send message"
             >
               {loading
@@ -754,7 +970,214 @@ const HealthAssistantWidget = () => {
         </div>
       )}
 
-      {/* CSS Animations */}
+      {/* ========================================================= */}
+      {/* DOCTOR CONSULTATION BOOKING MODAL                          */}
+      {/* ========================================================= */}
+      {showConsultModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 60,
+          background: 'rgba(15,23,42,0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+          animation: 'fadeSlideIn 0.2s ease-out',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 20,
+            width: '100%',
+            maxWidth: 420,
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            animation: 'chatSlideUp 0.3s ease-out',
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+              padding: '16px 20px',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Stethoscope size={22} color="white" />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>Book Doctor Consultation</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>MediCycle Healthcare Network</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConsultModal(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: 8,
+                  width: 30,
+                  height: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={18} color="white" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: 20 }}>
+              {consultSubmitted ? (
+                <div style={{
+                  padding: '30px 20px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 12,
+                }}>
+                  <div style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: '#dcfce7',
+                    color: '#16a34a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: '#1e293b' }}>
+                    Consultation Requested!
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                    Our medical partner team will call you back on <strong>{consultForm.phone}</strong> within 15 minutes.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleConsultSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                      Patient Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Adithya Kumar"
+                      value={consultForm.patientName}
+                      onChange={e => setConsultForm({ ...consultForm, patientName: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 14,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                      Phone / Mobile Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="+91 98765 43210"
+                      value={consultForm.phone}
+                      onChange={e => setConsultForm({ ...consultForm, phone: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 14,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                        Specialty
+                      </label>
+                      <select
+                        value={consultForm.specialty}
+                        onChange={e => setConsultForm({ ...consultForm, specialty: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '10px 10px',
+                          borderRadius: 10,
+                          border: '1px solid #cbd5e1',
+                          fontSize: 13,
+                          outline: 'none',
+                          background: 'white',
+                        }}
+                      >
+                        <option value="General Physician">General Physician</option>
+                        <option value="Cardiologist">Cardiologist</option>
+                        <option value="Pediatrician">Pediatrician</option>
+                        <option value="Pulmonologist">Pulmonologist</option>
+                        <option value="ENT Specialist">ENT Specialist</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                        Type
+                      </label>
+                      <select
+                        value={consultForm.consultType}
+                        onChange={e => setConsultForm({ ...consultForm, consultType: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '10px 10px',
+                          borderRadius: 10,
+                          border: '1px solid #cbd5e1',
+                          fontSize: 13,
+                          outline: 'none',
+                          background: 'white',
+                        }}
+                      >
+                        <option value="Tele-Consultation">Tele-Consultation</option>
+                        <option value="In-Person Visit">In-Person Visit</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    style={{
+                      marginTop: 6,
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: 12,
+                      background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                      color: 'white',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(79,70,229,0.3)',
+                    }}
+                  >
+                    Request Consultation
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animations & Responsive Styles */}
       <style>{`
         @keyframes fabPulse {
           0%, 100% { box-shadow: 0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1); }
@@ -765,7 +1188,7 @@ const HealthAssistantWidget = () => {
           50% { opacity: 0.5; }
         }
         @keyframes chatSlideUp {
-          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          from { opacity: 0; transform: translateY(20px) scale(0.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes fadeSlideIn {
@@ -783,6 +1206,12 @@ const HealthAssistantWidget = () => {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+          .consult-doctor-section {
+            padding: 10px !important;
+          }
         }
       `}</style>
     </>

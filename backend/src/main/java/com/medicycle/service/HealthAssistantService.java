@@ -2,7 +2,6 @@ package com.medicycle.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.medicycle.dto.request.SymptomCheckRequest;
 import com.medicycle.dto.response.SymptomCheckResponse;
@@ -24,9 +23,6 @@ public class HealthAssistantService {
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
-    private final String apiKey;
-    private final String apiUrl;
-    private final int maxTokens;
 
     // Hugging Face configuration
     private final String hfApiKey;
@@ -69,18 +65,10 @@ public class HealthAssistantService {
             """;
 
     public HealthAssistantService(
-            @Value("${gemini.api.key}") String apiKey,
-            @Value("${gemini.api.url}") String apiUrl,
-            @Value("${gemini.api.max-tokens}") int maxTokens,
-
             @Value("${hf.api.key}") String hfApiKey,
             @Value("${hf.api.url}") String hfApiUrl,
             @Value("${hf.api.max-tokens}") int hfMaxTokens,
-
             ObjectMapper objectMapper) {
-        this.apiKey = apiKey;
-        this.apiUrl = apiUrl;
-        this.maxTokens = maxTokens;
         this.hfApiKey = hfApiKey;
         this.hfApiUrl = hfApiUrl;
         this.hfMaxTokens = hfMaxTokens;
@@ -95,35 +83,10 @@ public class HealthAssistantService {
             // Try Hugging Face first
             String hfResponse = callHuggingFace(request);
             return parseHuggingFaceResponse(hfResponse);
-        } catch (Exception hfEx) {
-            log.warn("Hugging Face API call failed ({}), falling back to Gemini", hfEx.getMessage());
-            try {
-                String geminiResponse = callGemini(request);
-                return parseGeminiResponse(geminiResponse);
-            } catch (Exception gemEx) {
-                log.warn("Gemini also failed ({}), using internal fallback", gemEx.getMessage());
-                return generateFallbackAnalysis(request);
-            }
+        } catch (Exception ex) {
+            log.warn("Hugging Face API call failed ({}), using internal fallback", ex.getMessage());
+            return generateFallbackAnalysis(request);
         }
-    }
-
-    private String callGemini(SymptomCheckRequest request) throws Exception {
-        String requestBody = buildGeminiRequest(request);
-        String fullUrl = apiUrl + "?key=" + apiKey;
-
-        String responseBody = webClient.post()
-                .uri(fullUrl)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(15))
-                .block();
-
-        if (responseBody == null || responseBody.isBlank()) {
-            throw new RuntimeException("Empty response from Gemini");
-        }
-        return responseBody;
     }
 
     private String callHuggingFace(SymptomCheckRequest request) throws Exception {
@@ -153,130 +116,6 @@ public class HealthAssistantService {
         return responseBody;
     }
 
-    private String buildGeminiRequest(SymptomCheckRequest request) {
-        try {
-            ObjectNode root = objectMapper.createObjectNode();
-
-            // System instruction
-            ObjectNode systemInstruction = objectMapper.createObjectNode();
-            ObjectNode systemParts = objectMapper.createObjectNode();
-            systemParts.put("text", SYSTEM_PROMPT);
-            ArrayNode systemPartsArray = objectMapper.createArrayNode();
-            systemPartsArray.add(systemParts);
-            systemInstruction.set("parts", systemPartsArray);
-            root.set("system_instruction", systemInstruction);
-
-            // Contents (conversation history + current message)
-            ArrayNode contents = objectMapper.createArrayNode();
-
-            // Add conversation history if present
-            if (request.getConversationHistory() != null) {
-                for (SymptomCheckRequest.ChatMessage msg : request.getConversationHistory()) {
-                    ObjectNode content = objectMapper.createObjectNode();
-                    content.put("role", "user".equals(msg.getRole()) ? "user" : "model");
-                    ArrayNode parts = objectMapper.createArrayNode();
-                    ObjectNode part = objectMapper.createObjectNode();
-                    part.put("text", msg.getContent());
-                    parts.add(part);
-                    content.set("parts", parts);
-                    contents.add(content);
-                }
-            }
-
-            // Add current user message
-            ObjectNode userContent = objectMapper.createObjectNode();
-            userContent.put("role", "user");
-            ArrayNode userParts = objectMapper.createArrayNode();
-            ObjectNode userPart = objectMapper.createObjectNode();
-
-            StringBuilder messageBuilder = new StringBuilder(request.getMessage());
-            if (request.getAge() != null) {
-                messageBuilder.append("\n[Patient age: ").append(request.getAge()).append("]");
-            }
-            if (request.getGender() != null && !request.getGender().isBlank()) {
-                messageBuilder.append("\n[Patient gender: ").append(request.getGender()).append("]");
-            }
-            userPart.put("text", messageBuilder.toString());
-            userParts.add(userPart);
-            userContent.set("parts", userParts);
-            contents.add(userContent);
-
-            root.set("contents", contents);
-
-            // Generation config
-            ObjectNode generationConfig = objectMapper.createObjectNode();
-            generationConfig.put("maxOutputTokens", maxTokens);
-            generationConfig.put("temperature", 0.7);
-            generationConfig.put("topP", 0.9);
-            root.set("generationConfig", generationConfig);
-
-            // Safety settings — allow health-related content
-            ArrayNode safetySettings = objectMapper.createArrayNode();
-            String[] categories = {
-                    "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "HARM_CATEGORY_HARASSMENT",
-                    "HARM_CATEGORY_HATE_SPEECH",
-                    "HARM_CATEGORY_SEXUALLY_EXPLICIT"
-            };
-            for (String category : categories) {
-                ObjectNode setting = objectMapper.createObjectNode();
-                setting.put("category", category);
-                setting.put("threshold", "BLOCK_ONLY_HIGH");
-                safetySettings.add(setting);
-            }
-            root.set("safetySettings", safetySettings);
-
-            return objectMapper.writeValueAsString(root);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to build Gemini request", e);
-        }
-    }
-
-    private SymptomCheckResponse parseGeminiResponse(String responseBody) {
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode candidates = root.path("candidates");
-
-            if (candidates.isEmpty() || candidates.isMissingNode()) {
-                return buildErrorResponse("No response received from the AI. Please try rephrasing your symptoms.");
-            }
-
-            String aiText = candidates.get(0)
-                    .path("content")
-                    .path("parts")
-                    .get(0)
-                    .path("text")
-                    .asText("");
-
-            if (aiText.isBlank()) {
-                return buildErrorResponse("The AI returned an empty response. Please try again.");
-            }
-
-            // Parse structured data from the AI response
-            List<String> conditions = extractConditions(aiText);
-            String severity = extractSeverity(aiText);
-            boolean seekDoctor = aiText.toUpperCase().contains("SEEK_DOCTOR: YES")
-                    || "HIGH".equals(severity)
-                    || aiText.toLowerCase().contains("see a doctor")
-                    || aiText.toLowerCase().contains("seek medical")
-                    || aiText.toLowerCase().contains("consult a doctor");
-
-            // Clean the AI text: remove the structured markers for display
-            String cleanResponse = cleanAiResponse(aiText);
-
-            return SymptomCheckResponse.builder()
-                    .aiResponse(cleanResponse)
-                    .possibleConditions(conditions)
-                    .severity(severity)
-                    .seekDoctorAdvice(seekDoctor)
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error parsing Gemini response: {}", responseBody, e);
-            return buildErrorResponse("Error processing the AI response. Please try again.");
-        }
-    }
-
     private SymptomCheckResponse parseHuggingFaceResponse(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
@@ -295,7 +134,7 @@ public class HealthAssistantService {
             int lastUserIdx = generated.lastIndexOf("User:");
             String aiText = (lastUserIdx >= 0) ? generated.substring(lastUserIdx + 5).trim() : generated;
 
-            // Parse using the same helpers as Gemini response
+            // Parse using the same helpers as before
             List<String> conditions = extractConditions(aiText);
             String severity = extractSeverity(aiText);
             boolean seekDoctor = aiText.toUpperCase().contains("SEEK_DOCTOR: YES")
@@ -428,6 +267,7 @@ public class HealthAssistantService {
                 .severity("LOW")
                 .seekDoctorAdvice(false)
                 .build();
+    }
 
     private String buildPromptForHF(SymptomCheckRequest request) {
         StringBuilder sb = new StringBuilder();
@@ -436,7 +276,7 @@ public class HealthAssistantService {
         if (request.getConversationHistory() != null) {
             for (SymptomCheckRequest.ChatMessage msg : request.getConversationHistory()) {
                 String role = "user".equalsIgnoreCase(msg.getRole()) ? "User" : "Assistant";
-                sb.append(": ").append(msg.getContent()).append("\n");
+                sb.append(role).append(": ").append(msg.getContent()).append("\n");
             }
         }
         sb.append("User: ").append(request.getMessage());
@@ -449,5 +289,4 @@ public class HealthAssistantService {
         return sb.toString();
     }
 
-    }
 }

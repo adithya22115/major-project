@@ -4,7 +4,18 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+# Log files
+*.log
+backend.log
+
+# Uploaded files (user-uploaded medicine images, etc.)
+uploads/
+
+# Environment variables
+.env
+.env.*
+
+# IDE / Editor
 .apt_generated
 .classpath
 .factorypath
@@ -12,14 +23,11 @@ target/
 .settings
 .springBeans
 .sts4-cache
-
-### IntelliJ IDEA ###
 .idea
 *.iws
 *.iml
 *.ipr
-
-### NetBeans ###
+.vscode/
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -29,5 +37,6 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+# Application configuration (contains sensitive data)
+src/main/resources/application.properties
+src/main/resources/application.properties.example
