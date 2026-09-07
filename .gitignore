@@ -31,6 +31,9 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 frontend.log
+backend.log
+backend-run.log
+frontend-dev.log
 
 # === Backend (Spring Boot / Maven) ===
 backend/target/
@@ -47,6 +50,14 @@ frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 *.local
+
+# === Secrets / credentials (never commit) ===
+*.pem
+*.key
+*.p12
+*.jks
+*.crt
+*.keystore
 
 # === Workspace file ===
 *.code-workspace

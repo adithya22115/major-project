@@ -12,6 +12,7 @@ import com.medicycle.security.PasswordValidator;
 import com.medicycle.security.TwoFactorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -215,7 +216,9 @@ public class UserService {
 
         String newEncoded = passwordEncoder.encode(request.getNewPassword());
 
-        List<PasswordHistory> recentPasswords = passwordHistoryRepository.findTop5ByUserOrderByCreatedAtDesc(user);
+        int historyLimit = Math.max(1, passwordHistoryCount);
+        List<PasswordHistory> recentPasswords = passwordHistoryRepository
+                .findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, historyLimit));
         for (PasswordHistory history : recentPasswords) {
             if (passwordEncoder.matches(request.getNewPassword(), history.getPasswordHash())) {
                 throw new IllegalArgumentException("You cannot reuse a recent password");

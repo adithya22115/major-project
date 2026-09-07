@@ -68,7 +68,7 @@ class PharmacyVerificationServiceTest {
                 .thenReturn(false);
         when(verificationRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(verificationRepository.save(any(PharmacyVerification.class))).thenReturn(verification);
-        when(userRepository.findAll()).thenReturn(List.of(adminUser));
+        when(userRepository.findByRole_RoleName(RoleType.ADMIN)).thenReturn(List.of(adminUser));
 
         PharmacyVerificationResponse result = pharmacyVerificationService.submitVerification(request, 1L);
 
@@ -116,7 +116,7 @@ class PharmacyVerificationServiceTest {
                 .thenReturn(false);
         when(verificationRepository.findByUserId(1L)).thenReturn(Optional.of(verification));
         when(verificationRepository.save(any(PharmacyVerification.class))).thenReturn(verification);
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByRole_RoleName(any(RoleType.class))).thenReturn(Collections.emptyList());
 
         PharmacyVerificationResponse result = pharmacyVerificationService.submitVerification(request, 1L);
 

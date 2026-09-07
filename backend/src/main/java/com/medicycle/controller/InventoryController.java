@@ -4,6 +4,7 @@ import com.medicycle.dto.response.InventoryResponse;
 import com.medicycle.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +19,7 @@ public class InventoryController {
     private final InventoryService inventoryService;
 
     @GetMapping
+    @PreAuthorize("@userSecurity.isVerifiedPharmacy(authentication)")
     public ResponseEntity<List<InventoryResponse>> getInventory() {
         return ResponseEntity.ok(inventoryService.getAllInventory());
     }

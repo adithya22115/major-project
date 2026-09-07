@@ -19,17 +19,19 @@ class HealthAssistantServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+        // Blank key => analyzeSymptoms skips the network and returns the canned fallback instantly.
         healthAssistantService = new HealthAssistantService(
-                "test-hf-key",
-                "https://api-inference.huggingface.co/models/test-model",
+                "",
+                "https://api.openai.com/v1/chat/completions",
+                "gpt-4o-mini",
                 1024,
+                1,
                 objectMapper
         );
     }
 
     @Test
-    void analyzeSymptoms_shouldReturnErrorResponse_whenApiCallFails() {
-        // The real API won't work with a fake key, so we expect error handling to kick in
+    void analyzeSymptoms_shouldReturnFallback_whenNoApiKeyConfigured() {
         SymptomCheckRequest request = SymptomCheckRequest.builder()
                 .message("I have a headache and fever")
                 .build();
@@ -38,12 +40,23 @@ class HealthAssistantServiceTest {
 
         assertNotNull(response);
         assertNotNull(response.getAiResponse());
-        // Should return an error response since the API key is invalid
         assertFalse(response.getAiResponse().isEmpty());
+        // The canned fallback recognises "fever" and "headache" keywords.
+        assertFalse(response.getPossibleConditions().isEmpty());
     }
 
     @Test
-    void analyzeSymptoms_shouldHandleRequestWithAllFields() {
+    void analyzeSymptoms_shouldReturnFallback_whenApiUnreachable() {
+        // A non-blank key against an unroutable local port: connection refused -> fallback, no hang.
+        HealthAssistantService unreachable = new HealthAssistantService(
+                "fake-key",
+                "http://127.0.0.1:1/v1/chat/completions",
+                "gpt-4o-mini",
+                1024,
+                1,
+                objectMapper
+        );
+
         SymptomCheckRequest request = SymptomCheckRequest.builder()
                 .message("I have a sore throat and cough")
                 .age(25)
@@ -60,24 +73,28 @@ class HealthAssistantServiceTest {
                 ))
                 .build();
 
-        SymptomCheckResponse response = healthAssistantService.analyzeSymptoms(request);
+        SymptomCheckResponse response = unreachable.analyzeSymptoms(request);
 
         assertNotNull(response);
         assertNotNull(response.getAiResponse());
+        assertFalse(response.getAiResponse().isEmpty());
     }
 
     @Test
-    void parseHuggingFaceResponse_shouldExtractConditions() throws Exception {
-        // Simulate HF response: array with generated_text containing the structured output
+    void parseLlmResponse_shouldExtractConditions() throws Exception {
+        // Simulate an OpenAI-style response: choices[0].message.content
         String fakeResponse = """
-                [{
-                  "generated_text": "I understand you have a headache.\\n\\nPOSSIBLE_CONDITIONS: [Tension Headache, Migraine, Sinusitis]\\nSEVERITY: LOW\\n\\nPlease rest and stay hydrated."
-                }]
+                {
+                  "choices": [{
+                    "message": {
+                      "content": "I understand you have a headache.\\n\\nPOSSIBLE_CONDITIONS: [Tension Headache, Migraine, Sinusitis]\\nSEVERITY: LOW\\n\\nPlease rest and stay hydrated."
+                    }
+                  }]
+                }
                 """;
 
-        // Use reflection to call the private parseHuggingFaceResponse method
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
+                healthAssistantService, "parseLlmResponse", fakeResponse);
 
         assertNotNull(response);
         assertEquals(3, response.getPossibleConditions().size());
@@ -89,15 +106,19 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseHuggingFaceResponse_shouldDetectHighSeverityAndSeekDoctor() throws Exception {
+    void parseLlmResponse_shouldDetectHighSeverityAndSeekDoctor() throws Exception {
         String fakeResponse = """
-                [{
-                  "generated_text": "This sounds serious.\\n\\nPOSSIBLE_CONDITIONS: [Pneumonia, COVID-19]\\nSEVERITY: HIGH\\nSEEK_DOCTOR: YES\\n\\nPlease see a doctor immediately."
-                }]
+                {
+                  "choices": [{
+                    "message": {
+                      "content": "This sounds serious.\\n\\nPOSSIBLE_CONDITIONS: [Pneumonia, COVID-19]\\nSEVERITY: HIGH\\nSEEK_DOCTOR: YES\\n\\nPlease see a doctor immediately."
+                    }
+                  }]
+                }
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
+                healthAssistantService, "parseLlmResponse", fakeResponse);
 
         assertNotNull(response);
         assertEquals(2, response.getPossibleConditions().size());
@@ -106,15 +127,19 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseHuggingFaceResponse_shouldHandleMediumSeverityWithDoctorMention() throws Exception {
+    void parseLlmResponse_shouldHandleMediumSeverityWithDoctorMention() throws Exception {
         String fakeResponse = """
-                [{
-                  "generated_text": "Based on your symptoms, you should consult a doctor if they persist.\\n\\nPOSSIBLE_CONDITIONS: [Gastritis]\\nSEVERITY: MEDIUM"
-                }]
+                {
+                  "choices": [{
+                    "message": {
+                      "content": "Based on your symptoms, you should consult a doctor if they persist.\\n\\nPOSSIBLE_CONDITIONS: [Gastritis]\\nSEVERITY: MEDIUM"
+                    }
+                  }]
+                }
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
+                healthAssistantService, "parseLlmResponse", fakeResponse);
 
         assertNotNull(response);
         assertEquals("MEDIUM", response.getSeverity());
@@ -123,13 +148,13 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseHuggingFaceResponse_shouldHandleEmptyArray() throws Exception {
+    void parseLlmResponse_shouldHandleEmptyChoices() throws Exception {
         String fakeResponse = """
-                []
+                { "choices": [] }
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
+                healthAssistantService, "parseLlmResponse", fakeResponse);
 
         assertNotNull(response);
         assertNotNull(response.getAiResponse());
@@ -138,15 +163,19 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseHuggingFaceResponse_shouldHandleNoConditions() throws Exception {
+    void parseLlmResponse_shouldHandleNoConditions() throws Exception {
         String fakeResponse = """
-                [{
-                  "generated_text": "I need more information about your symptoms. Can you describe them in more detail?\\nSEVERITY: LOW"
-                }]
+                {
+                  "choices": [{
+                    "message": {
+                      "content": "I need more information about your symptoms. Can you describe them in more detail?\\nSEVERITY: LOW"
+                    }
+                  }]
+                }
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
+                healthAssistantService, "parseLlmResponse", fakeResponse);
 
         assertNotNull(response);
         assertTrue(response.getPossibleConditions().isEmpty());
@@ -154,15 +183,19 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void parseHuggingFaceResponse_shouldDefaultToMediumSeverity_whenNotParseable() throws Exception {
+    void parseLlmResponse_shouldDefaultToMediumSeverity_whenNotParseable() throws Exception {
         String fakeResponse = """
-                [{
-                  "generated_text": "You should rest and drink plenty of water."
-                }]
+                {
+                  "choices": [{
+                    "message": {
+                      "content": "You should rest and drink plenty of water."
+                    }
+                  }]
+                }
                 """;
 
         SymptomCheckResponse response = (SymptomCheckResponse) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "parseHuggingFaceResponse", fakeResponse);
+                healthAssistantService, "parseLlmResponse", fakeResponse);
 
         assertNotNull(response);
         // No SEVERITY marker, should default to MEDIUM
@@ -170,7 +203,7 @@ class HealthAssistantServiceTest {
     }
 
     @Test
-    void buildPromptForHF_shouldCreateCorrectPrompt() throws Exception {
+    void buildUserMessage_shouldIncludeAgeAndGender() throws Exception {
         SymptomCheckRequest request = SymptomCheckRequest.builder()
                 .message("I have a headache")
                 .age(30)
@@ -178,24 +211,19 @@ class HealthAssistantServiceTest {
                 .build();
 
         String result = (String) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "buildPromptForHF", request);
+                healthAssistantService, "buildUserMessage", request);
 
         assertNotNull(result);
-        // Should contain the system prompt, user message, age, gender
-        assertTrue(result.contains("You are MediCycle Health Assistant"));
         assertTrue(result.contains("I have a headache"));
         assertTrue(result.contains("[Patient age: 30]"));
         assertTrue(result.contains("[Patient gender: female]"));
-        // Check that conversation history is not present (null)
-        // Ensure there is no extra ": " before user message? Actually our format adds role: message
-        // For no history, we expect:
-        // SYSTEM_PROMPT + newline + newline + "User: I have a headache\n[Patient age: 30]\n[Patient gender: female]"
-        // We'll just check that "User:" appears.
-        assertTrue(result.contains("User: I have a headache"));
+        // The user message is the final user turn only; the system prompt lives in the system message.
+        assertFalse(result.contains("You are MediCycle Health Assistant"));
+        assertFalse(result.startsWith("User:"));
     }
 
     @Test
-    void buildPromptForHF_shouldIncludeConversationHistory() throws Exception {
+    void buildUserMessage_shouldOnlyContainLatestMessage_whenHistoryPresent() throws Exception {
         SymptomCheckRequest request = SymptomCheckRequest.builder()
                 .message("It's getting worse")
                 .conversationHistory(List.of(
@@ -211,13 +239,12 @@ class HealthAssistantServiceTest {
                 .build();
 
         String result = (String) ReflectionTestUtils.invokeMethod(
-                healthAssistantService, "buildPromptForHF", request);
+                healthAssistantService, "buildUserMessage", request);
 
         assertNotNull(result);
-        // Should contain the conversation history lines
-        assertTrue(result.contains("User: I have a fever"));
-        assertTrue(result.contains("Assistant: How high is your fever?"));
-        assertTrue(result.contains("User: It's getting worse"));
+        // History is appended as separate chat messages in callLlm; the user message is just the latest turn.
+        assertTrue(result.contains("It's getting worse"));
+        assertFalse(result.contains("I have a fever"));
     }
 
     @Test

@@ -77,7 +77,7 @@ class DonationServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(donorUser));
         when(medicineRepository.findById(1L)).thenReturn(Optional.of(testMedicine));
         when(donationRepository.save(any(MedicineDonation.class))).thenReturn(testDonation);
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByRole_RoleName(any(RoleType.class))).thenReturn(Collections.emptyList());
 
         DonationResponse result = donationService.createDonation(request, 1L);
 
@@ -111,7 +111,7 @@ class DonationServiceTest {
                 .status(DonationStatus.PENDING).city("Mumbai").state("Maharashtra")
                 .build();
         when(donationRepository.save(any(MedicineDonation.class))).thenReturn(savedDonation);
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByRole_RoleName(any(RoleType.class))).thenReturn(Collections.emptyList());
 
         DonationResponse result = donationService.createDonation(request, 1L);
 
@@ -154,7 +154,7 @@ class DonationServiceTest {
         when(medicineRepository.findById(1L)).thenReturn(Optional.of(testMedicine));
         when(donationRepository.save(any(MedicineDonation.class))).thenReturn(testDonation);
         when(imageRepository.save(any(MedicineImage.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByRole_RoleName(any(RoleType.class))).thenReturn(Collections.emptyList());
 
         DonationResponse result = donationService.createDonation(request, 1L);
 

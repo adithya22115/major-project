@@ -1,5 +1,6 @@
 package com.medicycle.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -10,7 +11,10 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PincodeLookupService {
+
+    private final RestTemplate restTemplate;
 
     private static final Map<String, Map<String, String>> FALLBACK_PINCODES = new HashMap<>();
 
@@ -124,7 +128,6 @@ public class PincodeLookupService {
         result.put("longitude", longitude);
 
         try {
-            RestTemplate restTemplate = new RestTemplate();
             String url = "https://nominatim.openstreetmap.org/reverse?lat=" + latitude + "&lon=" + longitude + "&format=json&addressdetails=1";
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
@@ -189,7 +192,6 @@ public class PincodeLookupService {
         }
 
         try {
-            RestTemplate restTemplate = new RestTemplate();
             String url = "https://api.postalpincode.in/pincode/" + pincode;
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> response = restTemplate.getForObject(url, List.class);

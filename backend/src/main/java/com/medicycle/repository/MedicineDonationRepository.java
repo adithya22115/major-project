@@ -11,10 +11,27 @@ import java.util.List;
 
 public interface MedicineDonationRepository extends JpaRepository<MedicineDonation, Long> {
     List<MedicineDonation> findByDonor(User donor);
-    List<MedicineDonation> findByStatus(DonationStatus status);
-    List<MedicineDonation> findByDonorId(Long donorId);
-    List<MedicineDonation> findByStatusAndCityIgnoreCase(DonationStatus status, String city);
-    List<MedicineDonation> findByStatusAndStateIgnoreCase(DonationStatus status, String state);
+
+    /**
+     * List queries below eagerly fetch the LAZY donor association to avoid
+     * N+1 selects when the DTO mapper reads donor fields for every row.
+     */
+    @Override
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine")
+    List<MedicineDonation> findAll();
+
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine WHERE d.status = :status")
+    List<MedicineDonation> findByStatus(@Param("status") DonationStatus status);
+
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine WHERE d.donor.id = :donorId")
+    List<MedicineDonation> findByDonorId(@Param("donorId") Long donorId);
+
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine WHERE d.status = :status AND LOWER(d.city) = LOWER(:city)")
+    List<MedicineDonation> findByStatusAndCityIgnoreCase(@Param("status") DonationStatus status, @Param("city") String city);
+
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine WHERE d.status = :status AND LOWER(d.state) = LOWER(:state)")
+    List<MedicineDonation> findByStatusAndStateIgnoreCase(@Param("status") DonationStatus status, @Param("state") String state);
+
     List<MedicineDonation> findByCityIgnoreCase(String city);
 
     @Query("SELECT d FROM MedicineDonation d " +

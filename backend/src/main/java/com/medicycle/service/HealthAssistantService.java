@@ -2,14 +2,19 @@ package com.medicycle.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.medicycle.dto.request.SymptomCheckRequest;
 import com.medicycle.dto.response.SymptomCheckResponse;
+import io.netty.channel.ChannelOption;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,10 +29,12 @@ public class HealthAssistantService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    // Hugging Face configuration
-    private final String hfApiKey;
-    private final String hfApiUrl;
-    private final int hfMaxTokens;
+    // LLM (OpenAI-compatible Chat Completions) configuration
+    private final String apiKey;
+    private final String apiUrl;
+    private final String model;
+    private final int maxTokens;
+    private final int timeoutSeconds;
 
     private static final String SYSTEM_PROMPT = """
             You are MediCycle Health Assistant, an AI-powered symptom checker. You are NOT a doctor and cannot diagnose conditions.
@@ -65,84 +72,109 @@ public class HealthAssistantService {
             """;
 
     public HealthAssistantService(
-            @Value("${hf.api.key}") String hfApiKey,
-            @Value("${hf.api.url}") String hfApiUrl,
-            @Value("${hf.api.max-tokens}") int hfMaxTokens,
+            @Value("${llm.api.key:}") String apiKey,
+            @Value("${llm.api.url:https://api.openai.com/v1/chat/completions}") String apiUrl,
+            @Value("${llm.model:gpt-4o-mini}") String model,
+            @Value("${llm.max-tokens:1024}") int maxTokens,
+            @Value("${llm.timeout-seconds:15}") int timeoutSeconds,
             ObjectMapper objectMapper) {
-        this.hfApiKey = hfApiKey;
-        this.hfApiUrl = hfApiUrl;
-        this.hfMaxTokens = hfMaxTokens;
+        this.apiKey = apiKey;
+        this.apiUrl = apiUrl;
+        this.model = model;
+        this.maxTokens = maxTokens;
+        this.timeoutSeconds = timeoutSeconds;
         this.objectMapper = objectMapper;
+
+        // Hard connect + read timeouts so a hung upstream never stalls the demo.
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, timeoutSeconds * 1000)
+                .responseTimeout(Duration.ofSeconds(timeoutSeconds));
         this.webClient = WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024))
                 .build();
     }
 
     public SymptomCheckResponse analyzeSymptoms(SymptomCheckRequest request) {
+        // No API key configured: skip the network entirely and answer instantly.
+        // This keeps the feature working during demos even without credentials.
+        if (!StringUtils.hasText(apiKey)) {
+            log.debug("No LLM API key configured, using internal fallback");
+            return generateFallbackAnalysis(request);
+        }
+
         try {
-            // Try Hugging Face first
-            String hfResponse = callHuggingFace(request);
-            return parseHuggingFaceResponse(hfResponse);
+            String llmResponse = callLlm(request);
+            return parseLlmResponse(llmResponse);
         } catch (Exception ex) {
-            log.warn("Hugging Face API call failed ({}), using internal fallback", ex.getMessage());
+            log.warn("LLM API call failed ({}), using internal fallback", ex.getMessage());
             return generateFallbackAnalysis(request);
         }
     }
 
-    private String callHuggingFace(SymptomCheckRequest request) throws Exception {
-        String prompt = buildPromptForHF(request);
+    private String callLlm(SymptomCheckRequest request) throws Exception {
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("inputs", prompt);
-        ObjectNode params = objectMapper.createObjectNode();
-        params.put("max_new_tokens", hfMaxTokens);
-        // Optional: return only the newly generated text
-        params.put("return_full_text", false);
-        root.set("parameters", params);
+        root.put("model", model);
+        root.put("max_tokens", maxTokens);
+        root.put("temperature", 0.5);
+
+        ArrayNode messages = root.putArray("messages");
+        ObjectNode systemMessage = messages.addObject();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", SYSTEM_PROMPT);
+
+        if (request.getConversationHistory() != null) {
+            for (SymptomCheckRequest.ChatMessage msg : request.getConversationHistory()) {
+                String role = "user".equalsIgnoreCase(msg.getRole()) ? "user" : "assistant";
+                ObjectNode historyMessage = messages.addObject();
+                historyMessage.put("role", role);
+                historyMessage.put("content", msg.getContent());
+            }
+        }
+
+        ObjectNode userMessage = messages.addObject();
+        userMessage.put("role", "user");
+        userMessage.put("content", buildUserMessage(request));
+
         String requestBody = objectMapper.writeValueAsString(root);
 
         String responseBody = webClient.post()
-                .uri(hfApiUrl)
-                .header("Authorization", "Bearer " + hfApiKey)
+                .uri(apiUrl)
+                .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(15))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
                 .block();
 
         if (responseBody == null || responseBody.isBlank()) {
-            throw new RuntimeException("Empty response from Hugging Face");
+            throw new RuntimeException("Empty response from LLM API");
         }
         return responseBody;
     }
 
-    private SymptomCheckResponse parseHuggingFaceResponse(String responseBody) {
+    private SymptomCheckResponse parseLlmResponse(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            // Expect an array with at least one element containing generated_text
-            JsonNode first = root.get(0);
-            if (first == null || first.isMissingNode()) {
-                return buildErrorResponse("Unexpected response format from Hugging Face.");
+            JsonNode choices = root.path("choices");
+            if (!choices.isArray() || choices.isEmpty()) {
+                return buildErrorResponse("Unexpected response format from the AI service.");
             }
 
-            String generated = first.path("generated_text").asText("");
-            if (generated.isBlank()) {
-                return buildErrorResponse("Empty generated text from Hugging Face.");
+            String content = choices.get(0).path("message").path("content").asText("");
+            if (content.isBlank()) {
+                return buildErrorResponse("Empty response from the AI service.");
             }
 
-            // Strip the prompt we sent: keep only the part after the last "User:" line
-            int lastUserIdx = generated.lastIndexOf("User:");
-            String aiText = (lastUserIdx >= 0) ? generated.substring(lastUserIdx + 5).trim() : generated;
-
-            // Parse using the same helpers as before
-            List<String> conditions = extractConditions(aiText);
-            String severity = extractSeverity(aiText);
-            boolean seekDoctor = aiText.toUpperCase().contains("SEEK_DOCTOR: YES")
+            List<String> conditions = extractConditions(content);
+            String severity = extractSeverity(content);
+            boolean seekDoctor = content.toUpperCase().contains("SEEK_DOCTOR: YES")
                     || "HIGH".equals(severity)
-                    || aiText.toLowerCase().contains("see a doctor")
-                    || aiText.toLowerCase().contains("seek medical")
-                    || aiText.toLowerCase().contains("consult a doctor");
-            String cleanResponse = cleanAiResponse(aiText);
+                    || content.toLowerCase().contains("see a doctor")
+                    || content.toLowerCase().contains("seek medical")
+                    || content.toLowerCase().contains("consult a doctor");
+            String cleanResponse = cleanAiResponse(content);
 
             return SymptomCheckResponse.builder()
                     .aiResponse(cleanResponse)
@@ -152,7 +184,7 @@ public class HealthAssistantService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error parsing Hugging Face response: {}", responseBody, e);
+            log.error("Error parsing LLM response: {}", responseBody, e);
             return buildErrorResponse("Error processing the AI response. Please try again.");
         }
     }
@@ -269,17 +301,9 @@ public class HealthAssistantService {
                 .build();
     }
 
-    private String buildPromptForHF(SymptomCheckRequest request) {
+    private String buildUserMessage(SymptomCheckRequest request) {
         StringBuilder sb = new StringBuilder();
-        sb.append(SYSTEM_PROMPT).append("\n\n");
-        // conversation history
-        if (request.getConversationHistory() != null) {
-            for (SymptomCheckRequest.ChatMessage msg : request.getConversationHistory()) {
-                String role = "user".equalsIgnoreCase(msg.getRole()) ? "User" : "Assistant";
-                sb.append(role).append(": ").append(msg.getContent()).append("\n");
-            }
-        }
-        sb.append("User: ").append(request.getMessage());
+        sb.append(request.getMessage());
         if (request.getAge() != null) {
             sb.append("\n[Patient age: ").append(request.getAge()).append("]");
         }

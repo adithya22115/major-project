@@ -59,12 +59,7 @@ public class AuthService {
     private final TwoFactorService twoFactorService;
     private final PasswordValidator passwordValidator;
     private final RateLimiterService rateLimiterService;
-
-    @Value("${app.login.max-attempts}")
-    private int maxLoginAttempts;
-
-    @Value("${app.login.lockout-duration-minutes}")
-    private int lockoutDurationMinutes;
+    private final LoginAttemptService loginAttemptService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -167,9 +162,8 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         } catch (Exception e) {
             if (user != null) {
-                handleFailedLogin(user);
+                loginAttemptService.handleFailedLogin(user);
             }
-            ConsumptionProbe afterProbe = rateLimiterService.tryConsumeLogin(clientIp);
             throw new IllegalArgumentException("Invalid email or password");
         }
 
@@ -478,19 +472,6 @@ public class AuthService {
                 .verified(user.isVerified())
                 .twoFactorRequired(false)
                 .build();
-    }
-
-    private void handleFailedLogin(User user) {
-        int attempts = (user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0) + 1;
-        user.setFailedLoginAttempts(attempts);
-
-        if (attempts >= maxLoginAttempts) {
-            user.setLockedUntil(LocalDateTime.now().plusMinutes(lockoutDurationMinutes));
-            log.warn("Account locked for user: {} ({}) until {}", user.getName(), user.getEmail(), user.getLockedUntil());
-            auditService.log(user, "ACCOUNT_LOCKED", "User", user.getId());
-        }
-
-        userRepository.save(user);
     }
 
     private void savePasswordHistory(User user, String encodedPassword) {

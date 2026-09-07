@@ -251,10 +251,26 @@ spring.jpa.properties.hibernate.format_sql=true
 jwt.secret=YourSuperSecretKeyChangeInProductionMakeItLongEnough
 jwt.expiration=86400000  # 24 hours in milliseconds
 
+# Seed Admin Account (optional; created by DataInitializer on first run)
+app.admin.email=${ADMIN_EMAIL:}
+app.admin.password=${ADMIN_PASSWORD:}
+app.admin.name=MediCycle Admin
+app.admin.phone=0000000000
+
+# CORS (comma-separated allowed origins, supports wildcards)
+app.cors.allowed-origins=http://localhost:*,http://127.0.0.1:*
+
+# H2 console (dev only — keep false outside local development)
+app.security.h2-console-enabled=false
+
 # File Upload Configuration
 file.upload-dir=uploads
+file.max-size=5242880  # max upload size in bytes (default 5MB)
 spring.servlet.multipart.max-file-size=5MB
 spring.servlet.multipart.max-request-size=10MB
+
+# Token cleanup schedule (purges expired refresh tokens / JWT blacklist)
+app.cleanup.token-cron=0 0 3 * * *
 
 # SpringDoc Configuration
 springdoc.api-docs.path=/api-docs

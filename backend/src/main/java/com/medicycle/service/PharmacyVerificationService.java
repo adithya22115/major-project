@@ -67,8 +67,7 @@ public class PharmacyVerificationService {
 
         auditService.log(user, "VERIFICATION_SUBMITTED", "PharmacyVerification", verification.getId());
 
-        User admin = userRepository.findAll().stream()
-                .filter(u -> u.getRole().getRoleName() == RoleType.ADMIN)
+        User admin = userRepository.findByRole_RoleName(RoleType.ADMIN).stream()
                 .findFirst()
                 .orElse(null);
         if (admin != null) {

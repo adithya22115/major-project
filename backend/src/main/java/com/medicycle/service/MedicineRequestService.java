@@ -84,13 +84,13 @@ public class MedicineRequestService {
     }
 
     private void notifyPharmacies(MedicineRequest request, Medicine medicine) {
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole().getRoleName() == RoleType.PHARMACY || u.getRole().getRoleName() == RoleType.ADMIN)
-                .forEach(pharmacy -> notificationService.createNotification(
-                        pharmacy,
-                        "New Medicine Request",
-                        "A request for " + medicine.getMedicineName() + " (qty: " + request.getRequestedQuantity() + ") needs review.",
-                        "REQUEST"));
+        List<User> pharmacyUsers = new java.util.ArrayList<>(userRepository.findByRole_RoleName(RoleType.PHARMACY));
+        pharmacyUsers.addAll(userRepository.findByRole_RoleName(RoleType.ADMIN));
+        pharmacyUsers.forEach(pharmacy -> notificationService.createNotification(
+                pharmacy,
+                "New Medicine Request",
+                "A request for " + medicine.getMedicineName() + " (qty: " + request.getRequestedQuantity() + ") needs review.",
+                "REQUEST"));
     }
 
     @Transactional(readOnly = true)

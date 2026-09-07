@@ -1,6 +1,7 @@
 package com.medicycle.service;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
@@ -8,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PincodeLookupServiceTest {
 
-    private final PincodeLookupService pincodeLookupService = new PincodeLookupService();
+    private final PincodeLookupService pincodeLookupService = new PincodeLookupService(new RestTemplate());
 
     @Test
     void lookup_shouldReturnMumbai_forKnownPincode() {

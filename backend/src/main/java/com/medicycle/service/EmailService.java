@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -20,6 +21,7 @@ public class EmailService {
     @Value("${app.base-url:http://localhost:5173}")
     private String baseUrl;
 
+    @Async
     public void sendVerificationEmail(String to, String name, String token) {
         String verificationLink = baseUrl + "/api/auth/verify?token=" + token;
         String subject = "Verify your MediCycle account";
@@ -42,6 +44,7 @@ public class EmailService {
         sendEmail(to, subject, body);
     }
 
+    @Async
     public void sendPasswordResetEmail(String to, String name, String token) {
         String resetLink = baseUrl + "/reset-password?token=" + token;
         String subject = "Reset your MediCycle password";
@@ -64,6 +67,7 @@ public class EmailService {
         sendEmail(to, subject, body);
     }
 
+    @Async
     public void sendTwoFactorCodeEmail(String to, String code) {
         String subject = "Your MediCycle 2FA Code";
         String body = String.format("""

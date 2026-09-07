@@ -7,6 +7,7 @@ import com.medicycle.service.VerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ public class VerificationController {
     private final VerificationService verificationService;
 
     @PutMapping("/{id}")
+    @PreAuthorize("@userSecurity.isVerifiedPharmacy(authentication)")
     public ResponseEntity<VerificationResponse> verifyDonation(
             @PathVariable Long id,
             @Valid @RequestBody VerificationRequest request,

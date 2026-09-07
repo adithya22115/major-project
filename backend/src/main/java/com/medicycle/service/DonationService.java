@@ -113,13 +113,13 @@ public class DonationService {
     }
 
     private void notifyPharmacies(MedicineDonation donation, Medicine medicine) {
-        userRepository.findAll().stream()
-                .filter(u -> u.getRole().getRoleName() == RoleType.PHARMACY || u.getRole().getRoleName() == RoleType.ADMIN)
-                .forEach(pharmacy -> notificationService.createNotification(
-                        pharmacy,
-                        "New Donation Pending",
-                        "A new donation of " + medicine.getMedicineName() + " (qty: " + donation.getQuantity() + ") requires verification.",
-                        "VERIFICATION"));
+        List<User> pharmacyUsers = new ArrayList<>(userRepository.findByRole_RoleName(RoleType.PHARMACY));
+        pharmacyUsers.addAll(userRepository.findByRole_RoleName(RoleType.ADMIN));
+        pharmacyUsers.forEach(pharmacy -> notificationService.createNotification(
+                pharmacy,
+                "New Donation Pending",
+                "A new donation of " + medicine.getMedicineName() + " (qty: " + donation.getQuantity() + ") requires verification.",
+                "VERIFICATION"));
     }
 
     @Transactional(readOnly = true)
@@ -264,7 +264,7 @@ public class DonationService {
 
     private boolean equalIgnoreCase(String a, String b) {
         if (a == null && b == null) return true;
-        if (a == null || b == null) return true;
+        if (a == null || b == null) return false;
         return a.trim().equalsIgnoreCase(b.trim());
     }
 }

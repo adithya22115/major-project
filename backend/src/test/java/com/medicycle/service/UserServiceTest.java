@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Collections;
@@ -166,7 +167,7 @@ class UserServiceTest {
         when(passwordEncoder.matches("old_password", "encoded_password")).thenReturn(true);
         when(passwordEncoder.encode("new_password")).thenReturn("new_encoded_password");
         when(passwordValidator.validate("new_password")).thenReturn(Collections.emptyList());
-        when(passwordHistoryRepository.findTop5ByUserOrderByCreatedAtDesc(any())).thenReturn(Collections.emptyList());
+        when(passwordHistoryRepository.findByUserOrderByCreatedAtDesc(any(), any(Pageable.class))).thenReturn(Collections.emptyList());
         when(userRepository.save(any(User.class))).thenReturn(testUser);
         when(passwordHistoryRepository.save(any())).thenReturn(null);
 

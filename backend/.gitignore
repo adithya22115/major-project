@@ -15,6 +15,14 @@ uploads/
 .env
 .env.*
 
+# Secrets / credentials (never commit)
+*.pem
+*.key
+*.p12
+*.jks
+*.crt
+*.keystore
+
 # IDE / Editor
 .apt_generated
 .classpath

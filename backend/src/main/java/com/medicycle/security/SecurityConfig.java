@@ -1,6 +1,7 @@
 package com.medicycle.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,6 +34,12 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomUserDetailsService userDetailsService;
 
+    @Value("${app.cors.allowed-origins:http://localhost:*}")
+    private String allowedOrigins;
+
+    @Value("${app.security.h2-console-enabled:false}")
+    private boolean h2ConsoleEnabled;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -49,35 +56,37 @@ public class SecurityConfig {
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000))
                 )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/").permitAll()
-                        .requestMatchers("/uploads/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/medicines/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/medicines/**").hasAnyRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/medicines/**").hasAnyRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/medicines/**").hasAnyRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/donations/**").hasAnyRole("DONOR", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/donations/**").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/verification/**").hasAnyRole("PHARMACY", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/inventory/**").hasAnyRole("PHARMACY", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/requests/**").hasAnyRole("RECIPIENT", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/requests/**").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/requests/**").hasAnyRole("PHARMACY", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/pharmacy-verification").hasAnyRole("PHARMACY")
-                        .requestMatchers(HttpMethod.GET, "/api/pharmacy-verification/me").hasAnyRole("PHARMACY")
-                        .requestMatchers("/api/pharmacy-verification/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/notifications/**").authenticated()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/users/pincode/**").permitAll()
-                        .requestMatchers("/api/users/profile/**").authenticated()
-                        .requestMatchers("/api/users/2fa/**").authenticated()
-                        .requestMatchers("/api/users/location").authenticated()
-                        .requestMatchers("/api/health-assistant/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/").permitAll()
+                            .requestMatchers("/uploads/**").permitAll()
+                            .requestMatchers("/api/auth/**").permitAll()
+                            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/medicines/**").authenticated()
+                            .requestMatchers(HttpMethod.POST, "/api/medicines/**").hasAnyRole("ADMIN")
+                            .requestMatchers(HttpMethod.PUT, "/api/medicines/**").hasAnyRole("ADMIN")
+                            .requestMatchers(HttpMethod.DELETE, "/api/medicines/**").hasAnyRole("ADMIN")
+                            .requestMatchers(HttpMethod.POST, "/api/donations/**").hasAnyRole("DONOR", "ADMIN")
+                            .requestMatchers(HttpMethod.GET, "/api/donations/**").authenticated()
+                            .requestMatchers(HttpMethod.PUT, "/api/verification/**").hasAnyRole("PHARMACY", "ADMIN")
+                            .requestMatchers(HttpMethod.GET, "/api/inventory/**").hasAnyRole("PHARMACY", "ADMIN")
+                            .requestMatchers(HttpMethod.POST, "/api/requests/**").hasAnyRole("RECIPIENT", "ADMIN")
+                            .requestMatchers(HttpMethod.GET, "/api/requests/**").authenticated()
+                            .requestMatchers(HttpMethod.PUT, "/api/requests/**").hasAnyRole("PHARMACY", "ADMIN")
+                            .requestMatchers(HttpMethod.POST, "/api/pharmacy-verification").hasAnyRole("PHARMACY")
+                            .requestMatchers(HttpMethod.GET, "/api/pharmacy-verification/me").hasAnyRole("PHARMACY")
+                            .requestMatchers("/api/pharmacy-verification/admin/**").hasRole("ADMIN")
+                            .requestMatchers("/api/notifications/**").authenticated()
+                            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                            .requestMatchers(HttpMethod.GET, "/api/users/pincode/**").permitAll()
+                            .requestMatchers("/api/users/profile/**").authenticated()
+                            .requestMatchers("/api/users/2fa/**").authenticated()
+                            .requestMatchers("/api/users/location").authenticated()
+                            .requestMatchers("/api/health-assistant/**").permitAll()
+                            .anyRequest().authenticated();
+                    if (h2ConsoleEnabled) {
+                        auth.requestMatchers("/h2-console/**").permitAll();
+                    }
+                })
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -87,10 +96,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*"));
+        configuration.setAllowedOriginPatterns(List.of(allowedOrigins.split(",")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("X-Rate-Limit-Remaining", "X-Rate-Limit-Reset"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

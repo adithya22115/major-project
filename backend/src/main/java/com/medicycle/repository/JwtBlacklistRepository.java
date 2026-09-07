@@ -13,7 +13,7 @@ public interface JwtBlacklistRepository extends JpaRepository<JwtBlacklist, Long
 
     @Modifying
     @Query("DELETE FROM JwtBlacklist j WHERE j.expiresAt < :now")
-    void deleteAllExpired(LocalDateTime now);
+    int deleteAllExpired(LocalDateTime now);
 
     boolean existsByTokenJti(String tokenJti);
 }

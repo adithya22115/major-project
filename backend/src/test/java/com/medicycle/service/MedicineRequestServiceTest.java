@@ -72,7 +72,7 @@ class MedicineRequestServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(recipient));
         when(medicineRepository.findById(1L)).thenReturn(Optional.of(medicine));
         when(requestRepository.save(any(MedicineRequest.class))).thenReturn(testRequest);
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByRole_RoleName(any(RoleType.class))).thenReturn(Collections.emptyList());
 
         MedicineRequestResponse result = medicineRequestService.createRequest(dto, 1L);
 
@@ -109,7 +109,7 @@ class MedicineRequestServiceTest {
                 .requestedQuantity(5).prescription(prescription)
                 .status(RequestStatus.PENDING).build();
         when(requestRepository.save(any(MedicineRequest.class))).thenReturn(requestWithPrescription);
-        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+        when(userRepository.findByRole_RoleName(any(RoleType.class))).thenReturn(Collections.emptyList());
 
         MedicineRequestResponse result = medicineRequestService.createRequest(dto, 1L);
 

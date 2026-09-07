@@ -8,10 +8,14 @@ import com.medicycle.repository.MedicineRepository;
 import com.medicycle.repository.RoleRepository;
 import com.medicycle.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
@@ -20,6 +24,18 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final MedicineRepository medicineRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.admin.email:}")
+    private String adminEmail;
+
+    @Value("${app.admin.password:}")
+    private String adminPassword;
+
+    @Value("${app.admin.name:MediCycle Admin}")
+    private String adminName;
+
+    @Value("${app.admin.phone:0000000000}")
+    private String adminPhone;
 
     @Override
     public void run(String... args) {
@@ -36,7 +52,13 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedAdminUser() {
-        if (userRepository.existsByEmail("adithyaadhi660@gmail.com")) {
+        if (!StringUtils.hasText(adminEmail) || !StringUtils.hasText(adminPassword)) {
+            log.warn("Admin seed skipped: set app.admin.email and app.admin.password "
+                    + "(or the ADMIN_EMAIL / ADMIN_PASSWORD environment variables) to create the admin account.");
+            return;
+        }
+
+        if (userRepository.existsByEmail(adminEmail.trim())) {
             return;
         }
 
@@ -44,10 +66,10 @@ public class DataInitializer implements CommandLineRunner {
                 .orElseThrow(() -> new IllegalStateException("ADMIN role not found"));
 
         User admin = User.builder()
-                .name("Adithya Admin")
-                .email("adithyaadhi660@gmail.com")
-                .phone("9999999999")
-                .password(passwordEncoder.encode("Adithya@123"))
+                .name(adminName)
+                .email(adminEmail.trim())
+                .phone(adminPhone)
+                .password(passwordEncoder.encode(adminPassword))
                 .role(adminRole)
                 .address("MediCycle HQ")
                 .city("Mumbai")
@@ -59,6 +81,7 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
 
         userRepository.save(admin);
+        log.info("Seeded admin account for {}", adminEmail);
     }
 
     private void seedMedicines() {

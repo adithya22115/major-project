@@ -29,12 +29,9 @@ public class AdminService {
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
         long totalUsers = userRepository.count();
-        long totalDonors = userRepository.findAll().stream()
-                .filter(u -> u.getRole().getRoleName() == RoleType.DONOR).count();
-        long totalRecipients = userRepository.findAll().stream()
-                .filter(u -> u.getRole().getRoleName() == RoleType.RECIPIENT).count();
-        long totalPharmacies = userRepository.findAll().stream()
-                .filter(u -> u.getRole().getRoleName() == RoleType.PHARMACY).count();
+        long totalDonors = userRepository.countByRole_RoleName(RoleType.DONOR);
+        long totalRecipients = userRepository.countByRole_RoleName(RoleType.RECIPIENT);
+        long totalPharmacies = userRepository.countByRole_RoleName(RoleType.PHARMACY);
         long totalMedicines = medicineRepository.count();
         long pendingDonations = donationRepository.findByStatus(DonationStatus.PENDING).size();
         long approvedDonations = donationRepository.findByStatus(DonationStatus.APPROVED).size();
