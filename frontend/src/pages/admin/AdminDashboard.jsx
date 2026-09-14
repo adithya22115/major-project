@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getOverview } from '../../services/adminService';
+import { askAdminQuery, getDemandForecast, getOverview } from '../../services/adminService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import {
@@ -20,6 +20,11 @@ const AdminDashboard = () => {
   const [userRoleFilter, setUserRoleFilter] = useState('');
   const [donationStatusFilter, setDonationStatusFilter] = useState('');
   const [requestStatusFilter, setRequestStatusFilter] = useState('');
+  const [adminQuery, setAdminQuery] = useState('');
+  const [queryResult, setQueryResult] = useState(null);
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [queryError, setQueryError] = useState('');
+  const [forecast, setForecast] = useState(null);
 
   useEffect(() => {
     const fetchOverview = async () => {
@@ -34,6 +39,29 @@ const AdminDashboard = () => {
     };
     fetchOverview();
   }, [cityFilter]);
+
+  const runAdminQuery = async (e) => {
+    e.preventDefault();
+    if (!adminQuery.trim()) return;
+    setQueryLoading(true);
+    setQueryError('');
+    try {
+      setQueryResult(await askAdminQuery(adminQuery));
+    } catch (_err) {
+      setQueryError(_err.response?.data?.message || 'The assistant is unavailable. Make sure the backend is running and try again.');
+      toast.error('Could not run the admin query');
+    } finally {
+      setQueryLoading(false);
+    }
+  };
+
+  const loadForecast = async () => {
+    try {
+      setForecast(await getDemandForecast(6, cityFilter || undefined));
+    } catch (_err) {
+      toast.error('Could not load demand forecast');
+    }
+  };
 
   if (loading) return <LoadingSpinner />;
   if (!data) return <div className="text-center text-muted py-12">No data available</div>;
@@ -100,6 +128,37 @@ const AdminDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-primary">Admin Control Center</h1>
           <p className="text-muted mt-1">Complete visibility into the entire platform.</p>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <form onSubmit={runAdminQuery} className="bg-surface border border-theme rounded-xl p-4 sm:p-5 min-w-0">
+            <h2 className="font-semibold text-primary">Admin query assistant</h2>
+            <p className="text-xs text-muted mt-1">Try: “show pending donations” or “show completed requests”.</p>
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
+              <input value={adminQuery} onChange={e => setAdminQuery(e.target.value)} className="min-w-0 flex-1 rounded-lg bg-surface2 border border-theme text-primary p-2.5" placeholder="Ask about the current overview..." aria-label="Admin query" />
+              <button type="submit" disabled={queryLoading || !adminQuery.trim()} className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                {queryLoading ? 'Asking...' : 'Ask'}
+              </button>
+            </div>
+            {queryError && <p className="text-xs text-red-400 mt-3" role="alert">{queryError}</p>}
+            {queryResult && <div className="text-xs text-muted mt-3 space-y-2">
+              <p>{queryResult.interpretation}</p>
+              <p className="text-primary">{queryResult.donations?.length || 0} donations · {queryResult.requests?.length || 0} requests · {queryResult.medicines?.length || 0} medicines</p>
+              {(queryResult.donations?.length > 0 || queryResult.requests?.length > 0 || queryResult.medicines?.length > 0) && (
+                <div className="max-h-32 overflow-y-auto rounded-lg border border-theme bg-surface2/40 p-2 space-y-1">
+                  {queryResult.donations?.slice(0, 5).map(item => <div key={`d-${item.id}`}>{item.medicineName} — donation ({item.status})</div>)}
+                  {queryResult.requests?.slice(0, 5).map(item => <div key={`r-${item.id}`}>{item.medicineName} — request ({item.status})</div>)}
+                  {queryResult.medicines?.slice(0, 5).map(item => <div key={`m-${item.id}`}>{item.medicineName} — medicine</div>)}
+                </div>
+              )}
+            </div>}
+          </form>
+          <div className="bg-surface border border-theme rounded-xl p-4 sm:p-5 min-w-0">
+            <div className="flex items-center justify-between">
+              <div><h2 className="font-semibold text-primary">Demand forecast</h2><p className="text-xs text-muted mt-1">Recent request history, projected one month ahead.</p></div>
+              <button onClick={loadForecast} className="px-3 py-2 rounded-lg border border-blue-500 text-blue-400 text-sm">Load</button>
+            </div>
+            {forecast && <div className="mt-3 space-y-1 text-xs text-muted">{forecast.forecasts?.slice(0, 5).map(item => <div key={item.medicineId} className="flex justify-between"><span>{item.medicineName}</span><span className="text-primary">{item.projectedNextMonthDemand} projected</span></div>)}</div>}
+          </div>
         </div>
         <div className="flex gap-2">
           <input

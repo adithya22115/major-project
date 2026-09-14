@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ mobile = false }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -55,6 +55,11 @@ const Sidebar = () => {
           { icon: BarChart3,       label: 'Reports',      path: '/admin/reports' },
           { icon: Settings,        label: 'Settings',     path: '/admin/settings' },
         ];
+      case 'DOCTOR':
+        return [
+          { icon: LayoutDashboard, label: 'Dashboard', path: '/doctor/dashboard' },
+          { icon: User,            label: 'Profile',   path: '/profile' },
+        ];
       default:
         return [];
     }
@@ -64,7 +69,7 @@ const Sidebar = () => {
   const isGuest = user?.isGuest;
 
   return (
-    <div className="w-64 bg-surface border-r border-theme h-screen flex flex-col hidden md:flex fixed left-0 top-0 z-40 transition-colors duration-200">
+    <div className={`${mobile ? 'flex' : 'hidden md:flex'} w-64 max-w-[85vw] bg-surface border-r border-theme h-screen flex-col fixed left-0 top-0 z-40 transition-colors duration-200`}>
 
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-theme shrink-0">

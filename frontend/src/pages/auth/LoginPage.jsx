@@ -4,14 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/common/Navbar';
 import { LogIn, ShieldCheck, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 
-const LoginPage = () => {
-  const [activeTab, setActiveTab] = useState('admin');
+const LoginPage = ({ staffOnly = false }) => {
+  const [activeTab, setActiveTab] = useState(staffOnly ? 'doctor' : 'admin');
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, user } = useAuth();
+  const { login, logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -42,7 +42,15 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password, rememberMe);
+      const result = await login(formData.email, formData.password, rememberMe);
+      if (staffOnly && !['DOCTOR', 'PHARMACY', 'ADMIN'].includes(result?.user?.role)) {
+        logout();
+        throw new Error('Staff Login is only for doctors, pharmacists, and administrators.');
+      }
+      if (!staffOnly && isDoctor && result?.user?.role !== 'DOCTOR') {
+        logout();
+        throw new Error('This login tab is for doctor accounts only.');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -51,6 +59,8 @@ const LoginPage = () => {
   };
 
   const isAdmin = activeTab === 'admin';
+  const isDoctor = activeTab === 'doctor';
+  const isStaff = activeTab === 'pharmacy' || isDoctor;
 
   return (
     <div className="min-h-screen bg-page flex flex-col font-sans">
@@ -72,16 +82,16 @@ const LoginPage = () => {
                 }
               </div>
               <h2 className="text-3xl font-extrabold text-white tracking-tight">
-                {isAdmin ? 'Admin Portal' : 'Pharmacist Portal'}
+                {isAdmin ? 'Admin Portal' : isDoctor ? 'Doctor Portal' : 'Pharmacist Portal'}
               </h2>
               <p className="mt-2 text-white/70">
-                {isAdmin ? 'Sign in to manage MediCycle' : 'Sign in to verify and manage donations'}
+                {isAdmin ? 'Sign in to manage MediCycle' : isDoctor ? 'Sign in to manage patient consultations' : 'Sign in to verify and manage donations'}
               </p>
             </div>
 
             {/* Tab Switcher */}
             <div className="flex border-b border-theme">
-              <button
+              {!staffOnly && <button
                 onClick={() => { setActiveTab('admin'); setError(''); setFormData({ email: '', password: '' }); }}
                 className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
                   isAdmin
@@ -91,7 +101,7 @@ const LoginPage = () => {
               >
                 <ShieldCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
                 Admin Login
-              </button>
+              </button>}
               <button
                 onClick={() => { setActiveTab('pharmacy'); setError(''); setFormData({ email: '', password: '' }); }}
                 className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
@@ -102,6 +112,15 @@ const LoginPage = () => {
               >
                 <Building2 className="h-4 w-4 inline mr-1.5 -mt-0.5" />
                 Pharmacist Login
+              </button>
+              <button
+                onClick={() => { setActiveTab('doctor'); setError(''); setFormData({ email: '', password: '' }); }}
+                className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
+                  isDoctor ? 'text-indigo-400 border-b-2 border-indigo-400 bg-surface2/30' : 'text-muted hover:text-primary'
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+                Doctor Login
               </button>
             </div>
 
@@ -121,7 +140,7 @@ const LoginPage = () => {
                     type="email"
                     required
                     className="block w-full px-4 py-3 bg-surface2 border border-theme rounded-xl text-primary placeholder-subtle text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder={isAdmin ? "admin@medicycle.com" : "pharmacy@example.com"}
+                    placeholder={isAdmin ? "admin@medicycle.com" : isDoctor ? "doctor@medicycle.com" : "pharmacy@example.com"}
                     value={formData.email}
                     onChange={handleChange}
                   />
@@ -176,6 +195,7 @@ const LoginPage = () => {
                   className={`w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl text-sm font-bold text-white transition-all shadow-md ${
                     isAdmin
                       ? 'bg-slate-600 hover:bg-slate-500 shadow-slate-600/20 hover:shadow-slate-600/40'
+                      : isDoctor ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20 hover:shadow-indigo-600/40'
                       : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20 hover:shadow-emerald-600/40'
                   } disabled:opacity-60`}
                 >
@@ -192,10 +212,19 @@ const LoginPage = () => {
             <div className="bg-surface2/50 px-8 py-5 border-t border-theme text-center space-y-2">
               {!isAdmin && (
                 <p className="text-sm text-muted">
-                  New Pharmacist?{' '}
-                  <Link to="/register" className="font-semibold text-emerald-500 hover:text-emerald-400">
-                    Register your pharmacy
+                  {isDoctor ? 'New Doctor?' : 'New Pharmacist?'}{' '}
+                  <Link
+                    to={isDoctor ? '/doctor-register' : '/register'}
+                    className={`font-semibold ${isDoctor ? 'text-indigo-500 hover:text-indigo-400' : 'text-emerald-500 hover:text-emerald-400'}`}
+                  >
+                    {isDoctor ? 'Register as a doctor' : 'Register your pharmacy'}
                   </Link>
+                </p>
+              )}
+              {!staffOnly && (
+                <p className="text-sm text-muted">
+                  Doctor or staff member?{' '}
+                  <Link to="/staff-login" className="font-semibold text-indigo-500 hover:text-indigo-400">Open Staff Login</Link>
                 </p>
               )}
               <p className="text-sm text-muted">

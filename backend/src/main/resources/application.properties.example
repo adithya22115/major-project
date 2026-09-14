@@ -1,0 +1,79 @@
+# === MEDICYLE APPLICATION CONFIGURATION EXAMPLE ===
+# COPY THIS FILE TO application.properties AND FILL IN YOUR ACTUAL VALUES
+# NEVER COMMIT THE ACTUAL application.properties FILE TO VERSION CONTROL
+# IT CONTAINS SENSITIVE INFORMATION LIKE DATABASE CREDENTIALS AND JWT SECRETS
+
+spring.application.name=MediCycle
+server.port=8085
+
+# === DATABASE CONFIGURATION ===
+# Development: H2 in-memory (uncomment below, comment PostgreSQL block)
+# spring.datasource.url=jdbc:h2:mem:medicycle;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+# spring.datasource.driver-class-name=org.h2.Driver
+# spring.datasource.username=sa
+# spring.datasource.password=
+# spring.h2.console.enabled=true
+# spring.h2.console.path=/h2-console
+
+# Production/Development: PostgreSQL (uncomment below, comment H2 block)
+spring.datasource.url=jdbc:postgresql://localhost:5432/medicycle
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.sql.init.mode=never
+
+jwt.secret=YOUR_JWT_SECRET_KEY_HERE_MAKE_IT_LONG_AND_RANDOM
+jwt.expiration=86400000
+
+file.upload-dir=uploads
+# Max upload size in bytes (default 5MB)
+file.max-size=5242880
+spring.servlet.multipart.max-file-size=5MB
+spring.servlet.multipart.max-request-size=10MB
+
+# === SEED ADMIN ACCOUNT (created by DataInitializer on first run) ===
+# Set both values (via env vars or here) to create the initial admin account.
+# Leave empty to skip admin seeding.
+app.admin.email=${ADMIN_EMAIL:}
+app.admin.password=${ADMIN_PASSWORD:}
+app.admin.name=${ADMIN_NAME:MediCycle Admin}
+app.doctor.email=${DOCTOR_EMAIL:}
+app.doctor.password=${DOCTOR_PASSWORD:}
+app.doctor.name=${DOCTOR_NAME:MediCycle Doctor}
+app.admin.phone=${ADMIN_PHONE:0000000000}
+
+# === CORS ===
+# Comma-separated list of allowed origins (supports wildcards, e.g. http://localhost:*)
+app.cors.allowed-origins=http://localhost:*,http://127.0.0.1:*
+
+# === H2 CONSOLE (dev only) ===
+app.security.h2-console-enabled=false
+
+# === TOKEN CLEANUP ===
+app.cleanup.token-cron=0 0 3 * * *
+app.cleanup.donation-expiry-cron=0 15 3 * * *
+
+# === HEALTH ASSISTANT LLM (OpenAI-compatible Chat Completions) ===
+# Leave LLM_API_KEY empty to use the built-in offline fallback (demo-safe).
+# llm.api.url works with any OpenAI-compatible endpoint (OpenAI, Azure, Groq, etc.)
+llm.api.key=${LLM_API_KEY:}
+llm.api.url=${LLM_API_URL:https://api.openai.com/v1/chat/completions}
+llm.model=${LLM_MODEL:gpt-4o-mini}
+llm.max-tokens=1024
+llm.timeout-seconds=15
+
+# === MEDICINE IMAGE VERIFICATION ===
+# Uses the same OpenAI-compatible provider with vision support.
+medicine.analysis.api.key=${MEDICINE_ANALYSIS_API_KEY:${LLM_API_KEY:}}
+medicine.analysis.api.url=${MEDICINE_ANALYSIS_API_URL:https://api.openai.com/v1/chat/completions}
+medicine.analysis.model=${MEDICINE_ANALYSIS_MODEL:gpt-4o-mini}
+medicine.analysis.timeout-seconds=20
+medicine.analysis.max-image-bytes=5242880
+
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html

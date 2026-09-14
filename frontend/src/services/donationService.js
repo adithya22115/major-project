@@ -7,6 +7,17 @@ export const createDonation = async (formData) => {
   return response.data;
 };
 
+export const analyzeMedicineImage = async (image, medicineName = '', dosage = '') => {
+  const data = new FormData();
+  data.append('image', image);
+  if (medicineName) data.append('medicineName', medicineName);
+  if (dosage) data.append('dosage', dosage);
+  const response = await api.post('/medicines/analyze-image', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
 export const getDonations = async () => {
   const response = await api.get('/donations');
   return response.data;

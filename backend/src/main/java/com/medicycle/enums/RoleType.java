@@ -4,5 +4,6 @@ public enum RoleType {
     DONOR,
     RECIPIENT,
     PHARMACY,
-    ADMIN
+    ADMIN,
+    DOCTOR
 }

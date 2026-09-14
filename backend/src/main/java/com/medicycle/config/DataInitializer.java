@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -24,6 +25,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final MedicineRepository medicineRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.admin.email:}")
     private String adminEmail;
@@ -37,11 +39,30 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.admin.phone:0000000000}")
     private String adminPhone;
 
+    @Value("${app.doctor.email:}")
+    private String doctorEmail;
+
+    @Value("${app.doctor.password:}")
+    private String doctorPassword;
+
+    @Value("${app.doctor.name:MediCycle Doctor}")
+    private String doctorName;
+
     @Override
     public void run(String... args) {
+        migrateRoleConstraint();
         seedRoles();
         seedAdminUser();
+        seedDoctorUser();
         seedMedicines();
+    }
+
+    private void migrateRoleConstraint() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_role_name_check");
+        } catch (Exception ex) {
+            log.debug("Role constraint migration skipped: {}", ex.getMessage());
+        }
     }
 
     private void seedRoles() {
@@ -82,6 +103,20 @@ public class DataInitializer implements CommandLineRunner {
 
         userRepository.save(admin);
         log.info("Seeded admin account for {}", adminEmail);
+    }
+
+    private void seedDoctorUser() {
+        if (!StringUtils.hasText(doctorEmail) || !StringUtils.hasText(doctorPassword)
+                || userRepository.existsByEmail(doctorEmail.trim())) {
+            return;
+        }
+        Role doctorRole = roleRepository.findByRoleName(RoleType.DOCTOR)
+                .orElseThrow(() -> new IllegalStateException("DOCTOR role not found"));
+        userRepository.save(User.builder()
+                .name(doctorName).email(doctorEmail.trim()).phone("0000000000")
+                .password(passwordEncoder.encode(doctorPassword)).role(doctorRole)
+                .city("Mumbai").state("Maharashtra").pincode("400001").isVerified(true).build());
+        log.info("Seeded doctor account for {}", doctorEmail);
     }
 
     private void seedMedicines() {

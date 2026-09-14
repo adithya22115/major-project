@@ -45,7 +45,7 @@ const Layout = () => {
       />
 
       {/* Desktop Sidebar */}
-      <Sidebar />
+      <Sidebar mobile />
 
       {/* Main Content Wrapper */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen transition-all duration-300">

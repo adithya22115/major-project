@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 import java.util.HashMap;
 import java.util.List;
@@ -129,8 +132,11 @@ public class PincodeLookupService {
 
         try {
             String url = "https://nominatim.openstreetmap.org/reverse?lat=" + latitude + "&lon=" + longitude + "&format=json&addressdetails=1";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", "MediCycle/1.0 (medicine donation platform; contact: support@medicycle.local)");
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            Map<String, Object> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), Map.class).getBody();
 
             if (response != null) {
                 @SuppressWarnings("unchecked")

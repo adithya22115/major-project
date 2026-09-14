@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import com.medicycle.dto.response.PagedResponse;
 
 @RestController
 @RequestMapping("/api/requests")
@@ -54,6 +56,17 @@ public class MedicineRequestController {
             return ResponseEntity.ok(medicineRequestService.getRequestsByRecipient(principal.getId()));
         }
         return ResponseEntity.ok(medicineRequestService.getAllRequests());
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<PagedResponse<MedicineRequestResponse>> getRequestsPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        RoleType role = principal.getUser().getRole().getRoleName();
+        return ResponseEntity.ok(medicineRequestService.getRequestsPage(
+                role == RoleType.RECIPIENT ? principal.getId() : null,
+                PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), 100))));
     }
 
     @PutMapping("/{id}")

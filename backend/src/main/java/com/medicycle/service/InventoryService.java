@@ -1,12 +1,15 @@
 package com.medicycle.service;
 
 import com.medicycle.dto.response.InventoryResponse;
+import com.medicycle.dto.response.PagedResponse;
 import com.medicycle.entity.Inventory;
 import com.medicycle.entity.Medicine;
 import com.medicycle.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -21,6 +24,15 @@ public class InventoryService {
         return inventoryRepository.findAll().stream()
                 .map(DtoMapper::toInventoryResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<InventoryResponse> getInventoryPage(Pageable pageable) {
+        Page<Inventory> page = inventoryRepository.findAllPage(pageable);
+        return PagedResponse.<InventoryResponse>builder()
+                .content(page.getContent().stream().map(DtoMapper::toInventoryResponse).toList())
+                .page(page.getNumber()).size(page.getSize()).totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages()).last(page.isLast()).build();
     }
 
     @Transactional

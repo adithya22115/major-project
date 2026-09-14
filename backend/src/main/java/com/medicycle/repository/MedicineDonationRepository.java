@@ -1,16 +1,34 @@
 package com.medicycle.repository;
 
 import com.medicycle.entity.MedicineDonation;
+import com.medicycle.entity.Medicine;
 import com.medicycle.entity.User;
 import com.medicycle.enums.DonationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
 
 import java.util.List;
 
 public interface MedicineDonationRepository extends JpaRepository<MedicineDonation, Long> {
     List<MedicineDonation> findByDonor(User donor);
+
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine")
+    Page<MedicineDonation> findAllPage(Pageable pageable);
+
+    @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine WHERE d.donor.id = :donorId")
+    Page<MedicineDonation> findByDonorIdPage(@Param("donorId") Long donorId, Pageable pageable);
+
+    long countByStatus(DonationStatus status);
+    long countByStatusAndMedicine(DonationStatus status, Medicine medicine);
+
+    @Modifying
+    @Query("UPDATE MedicineDonation d SET d.status = com.medicycle.enums.DonationStatus.EXPIRED " +
+            "WHERE d.status = com.medicycle.enums.DonationStatus.APPROVED AND d.expiryDate < :today")
+    int markExpired(@Param("today") java.time.LocalDate today);
 
     /**
      * List queries below eagerly fetch the LAZY donor association to avoid

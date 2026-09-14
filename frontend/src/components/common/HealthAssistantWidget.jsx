@@ -5,6 +5,7 @@ import {
   ExternalLink, CheckCircle2 
 } from 'lucide-react';
 import { checkSymptoms } from '../../services/healthAssistantService';
+import { bookDoctorAppointment } from '../../services/doctorAppointmentService';
 
 const QUICK_SYMPTOMS = [
   { label: 'Fever', icon: Thermometer, color: '#ef4444' },
@@ -44,6 +45,8 @@ const HealthAssistantWidget = () => {
     notes: '',
   });
   const [consultSubmitted, setConsultSubmitted] = useState(false);
+  const [consultError, setConsultError] = useState('');
+  const [consultLoading, setConsultLoading] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -69,6 +72,13 @@ const HealthAssistantWidget = () => {
   useEffect(() => {
     if (isOpen) setPulseAnimation(false);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && !loading) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, loading]);
 
   // Scroll tracking
   const handleScroll = () => {
@@ -145,21 +155,28 @@ const HealthAssistantWidget = () => {
     setShowInfoFields(false);
   };
 
-  const handleConsultSubmit = (e) => {
+  const handleConsultSubmit = async (e) => {
     e.preventDefault();
-    if (!consultForm.patientName || !consultForm.phone) return;
-    setConsultSubmitted(true);
-    setTimeout(() => {
-      setConsultSubmitted(false);
-      setShowConsultModal(false);
-      setConsultForm({
-        patientName: '',
-        phone: '',
-        specialty: 'General Physician',
-        consultType: 'Tele-Consultation (Video/Call)',
-        notes: '',
+    if (!consultForm.patientName.trim() || !consultForm.phone.trim()) {
+      setConsultError('Patient name and phone number are required.');
+      return;
+    }
+    setConsultError('');
+    setConsultLoading(true);
+    try {
+      await bookDoctorAppointment({
+        patientName: consultForm.patientName,
+        phone: consultForm.phone,
+        specialty: consultForm.specialty,
+        consultationType: consultForm.consultType,
+        notes: consultForm.notes,
       });
-    }, 2400);
+      setConsultSubmitted(true);
+    } catch (err) {
+      setConsultError(err.response?.data?.message || 'Please sign in before booking a doctor consultation.');
+    } finally {
+      setConsultLoading(false);
+    }
   };
 
   return (
@@ -244,7 +261,8 @@ const HealthAssistantWidget = () => {
             left: isMobile ? 0 : 'auto',
             top: isMobile ? 0 : 'auto',
             width: isMobile ? '100%' : '420px',
-            height: isMobile ? '100%' : 'min(640px, calc(100vh - 48px))',
+            height: isMobile ? '100dvh' : 'min(640px, calc(100vh - 48px))',
+            maxHeight: '100dvh',
             borderRadius: isMobile ? 0 : 20,
             overflow: 'hidden',
             boxShadow: isMobile ? 'none' : '0 24px 80px rgba(0,0,0,0.25), 0 8px 32px rgba(99,102,241,0.15)',
@@ -912,7 +930,6 @@ const HealthAssistantWidget = () => {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Describe your symptoms..."
-              disabled={loading}
               rows={1}
               style={{
                 flex: 1,
@@ -925,6 +942,10 @@ const HealthAssistantWidget = () => {
                 lineHeight: 1.5,
                 maxHeight: 100,
                 background: '#f8fafc',
+                color: '#0f172a',
+                caretColor: '#4f46e5',
+                cursor: 'text',
+                pointerEvents: 'auto',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
                 fontFamily: 'inherit',
               }}
@@ -942,6 +963,7 @@ const HealthAssistantWidget = () => {
               }}
             />
             <button
+              type="button"
               onClick={() => handleSend()}
               disabled={!input.trim() || loading}
               style={{
@@ -983,17 +1005,21 @@ const HealthAssistantWidget = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 16,
+          padding: isMobile ? 8 : 16,
           animation: 'fadeSlideIn 0.2s ease-out',
-        }}>
+          pointerEvents: 'auto',
+        }} onMouseDown={e => e.stopPropagation()}>
           <div style={{
             background: 'white',
             borderRadius: 20,
             width: '100%',
-            maxWidth: 420,
+            maxWidth: 'min(420px, 100%)',
+            maxHeight: 'calc(100dvh - 16px)',
+            overflowY: 'auto',
             overflow: 'hidden',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
             animation: 'chatSlideUp 0.3s ease-out',
+            pointerEvents: 'auto',
           }}>
             {/* Modal Header */}
             <div style={{
@@ -1061,6 +1087,7 @@ const HealthAssistantWidget = () => {
                 </div>
               ) : (
                 <form onSubmit={handleConsultSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {consultError && <div style={{ color: '#b91c1c', fontSize: 12, background: '#fef2f2', padding: 10, borderRadius: 8 }}>{consultError}</div>}
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
                       Patient Full Name *
@@ -1078,6 +1105,9 @@ const HealthAssistantWidget = () => {
                         border: '1px solid #cbd5e1',
                         fontSize: 14,
                         outline: 'none',
+                        color: '#0f172a',
+                        background: '#ffffff',
+                        pointerEvents: 'auto',
                       }}
                     />
                   </div>
@@ -1099,11 +1129,14 @@ const HealthAssistantWidget = () => {
                         border: '1px solid #cbd5e1',
                         fontSize: 14,
                         outline: 'none',
+                        color: '#0f172a',
+                        background: '#ffffff',
+                        pointerEvents: 'auto',
                       }}
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
                         Specialty
@@ -1119,6 +1152,8 @@ const HealthAssistantWidget = () => {
                           fontSize: 13,
                           outline: 'none',
                           background: 'white',
+                          color: '#0f172a',
+                          pointerEvents: 'auto',
                         }}
                       >
                         <option value="General Physician">General Physician</option>
@@ -1144,6 +1179,8 @@ const HealthAssistantWidget = () => {
                           fontSize: 13,
                           outline: 'none',
                           background: 'white',
+                          color: '#0f172a',
+                          pointerEvents: 'auto',
                         }}
                       >
                         <option value="Tele-Consultation">Tele-Consultation</option>
@@ -1164,11 +1201,12 @@ const HealthAssistantWidget = () => {
                       border: 'none',
                       fontWeight: 700,
                       fontSize: 14,
-                      cursor: 'pointer',
+                      cursor: consultLoading ? 'wait' : 'pointer',
                       boxShadow: '0 4px 12px rgba(79,70,229,0.3)',
                     }}
+                    disabled={consultLoading}
                   >
-                    Request Consultation
+                    {consultLoading ? 'Submitting...' : 'Request Consultation'}
                   </button>
                 </form>
               )}

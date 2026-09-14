@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { submitVerification, getMyVerification } from '../../services/verificationService';
@@ -204,34 +205,32 @@ const PharmacyVerification = () => {
           className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-400 border border-blue-500/40 rounded-xl hover:bg-blue-500/10 transition-colors disabled:opacity-60"
         >
           {refreshing ? <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> : '🔄'}
-          {refreshing ? 'Checking...' : 'Check Status'}
+          {refreshing ? 'Checking...' : 'Check Approval Status'}
         </button>
       </div>
 
-      {/* Status Check Section */}
-      <div id="status-check-section">
-        {statusBanner()}
-        {(isApproved || isPending) && existingVerification && (
-          <div className="bg-surface border border-theme rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-primary mb-4">Your Verification Details</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted">Pharmacy:</span> <span className="text-primary font-medium">{existingVerification.pharmacyName}</span></div>
-              <div><span className="text-muted">License:</span> <span className="text-primary font-medium">{existingVerification.licenseNumber}</span></div>
-              <div><span className="text-muted">Address:</span> <span className="text-primary font-medium">{existingVerification.pharmacyAddress || 'N/A'}</span></div>
-              <div><span className="text-muted">Contact:</span> <span className="text-primary font-medium">{existingVerification.contactPhone || 'N/A'}</span></div>
-              <div><span className="text-muted">Status:</span> <span className={isApproved ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>{isApproved ? 'Approved ✓' : 'Pending Review...'}</span></div>
-              {existingVerification.submittedAt && <div><span className="text-muted">Submitted:</span> <span className="text-primary font-medium">{new Date(existingVerification.submittedAt).toLocaleDateString()}</span></div>}
-            </div>
-            {isApproved && (
-              <a href="/pharmacy/dashboard" className="mt-4 inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors">
-                Go to Pharmacy Dashboard →
-              </a>
-            )}
-          </div>
-        )}
-      </div>
+      {statusBanner()}
 
-      {!isPending && !isApproved && (
+      {(isApproved || isPending) && existingVerification && (
+        <div className="bg-surface border border-theme rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-primary mb-4">Your Verification Details</h2>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-muted">Pharmacy:</span> <span className="text-primary font-medium">{existingVerification.pharmacyName}</span></div>
+            <div><span className="text-muted">License:</span> <span className="text-primary font-medium">{existingVerification.licenseNumber}</span></div>
+            <div><span className="text-muted">Address:</span> <span className="text-primary font-medium">{existingVerification.pharmacyAddress || 'N/A'}</span></div>
+            <div><span className="text-muted">Contact:</span> <span className="text-primary font-medium">{existingVerification.contactPhone || 'N/A'}</span></div>
+            <div><span className="text-muted">Status:</span> <span className={isApproved ? 'text-emerald-400 font-medium' : 'text-amber-400 font-medium'}>{isApproved ? 'Approved ✓' : 'Pending Review...'}</span></div>
+            {existingVerification.submittedAt && <div><span className="text-muted">Submitted:</span> <span className="text-primary font-medium">{new Date(existingVerification.submittedAt).toLocaleDateString()}</span></div>}
+          </div>
+          {isApproved && (
+            <a href="/pharmacy/dashboard" className="mt-4 inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors">
+              Go to Pharmacy Dashboard →
+            </a>
+          )}
+        </div>
+      )}
+
+      {(!isPending && !isApproved) && (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-surface border border-theme rounded-xl p-6">
             <div className="flex items-center gap-2 mb-5">
@@ -273,7 +272,7 @@ const PharmacyVerification = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>State</label>
-                  <input name="state" type="text" required className={inputClass} value={formData.state} onChange={handleChange} />
+                  <input name="state" type="text" className={inputClass} value={formData.state} onChange={handleChange} />
                 </div>
                 <div>
                   <label className={labelClass}>Pincode</label>

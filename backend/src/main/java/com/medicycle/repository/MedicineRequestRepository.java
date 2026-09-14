@@ -4,6 +4,8 @@ import com.medicycle.entity.MedicineRequest;
 import com.medicycle.entity.User;
 import com.medicycle.enums.RequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -11,6 +13,14 @@ import java.util.List;
 
 public interface MedicineRequestRepository extends JpaRepository<MedicineRequest, Long> {
     List<MedicineRequest> findByRecipient(User recipient);
+
+    @Query("SELECT r FROM MedicineRequest r JOIN FETCH r.recipient JOIN FETCH r.medicine LEFT JOIN FETCH r.prescription LEFT JOIN FETCH r.approvedBy")
+    Page<MedicineRequest> findAllPage(Pageable pageable);
+
+    @Query("SELECT r FROM MedicineRequest r JOIN FETCH r.recipient JOIN FETCH r.medicine LEFT JOIN FETCH r.prescription LEFT JOIN FETCH r.approvedBy WHERE r.recipient.id = :recipientId")
+    Page<MedicineRequest> findByRecipientIdPage(@Param("recipientId") Long recipientId, Pageable pageable);
+
+    long countByStatus(RequestStatus status);
 
     /**
      * List queries below eagerly fetch the LAZY recipient/approvedBy

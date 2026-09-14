@@ -2,6 +2,7 @@ package com.medicycle.service;
 
 import com.medicycle.dto.request.MedicineCreateRequest;
 import com.medicycle.dto.response.MedicineResponse;
+import com.medicycle.dto.response.PagedResponse;
 import com.medicycle.entity.Medicine;
 import com.medicycle.entity.User;
 import com.medicycle.exception.ResourceNotFoundException;
@@ -10,6 +11,8 @@ import com.medicycle.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -26,6 +29,15 @@ public class MedicineService {
         return medicineRepository.findAll().stream()
                 .map(DtoMapper::toMedicineResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<MedicineResponse> getMedicinesPage(Pageable pageable) {
+        Page<Medicine> page = medicineRepository.findAllByOrderByIdDesc(pageable);
+        return PagedResponse.<MedicineResponse>builder()
+                .content(page.getContent().stream().map(DtoMapper::toMedicineResponse).toList())
+                .page(page.getNumber()).size(page.getSize()).totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages()).last(page.isLast()).build();
     }
 
     @Transactional(readOnly = true)

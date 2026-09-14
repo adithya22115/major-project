@@ -13,6 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import com.medicycle.dto.response.PagedResponse;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -52,8 +55,8 @@ public class DonationController {
         request.setRequiresPrescription(requiresPrescription);
         request.setQuantity(quantity);
         request.setBatchNumber(batchNumber);
-        request.setManufactureDate(manufactureDate != null ? LocalDate.parse(manufactureDate) : null);
-        request.setExpiryDate(expiryDate != null ? LocalDate.parse(expiryDate) : null);
+        request.setManufactureDate(parseDateOrMonth(manufactureDate));
+        request.setExpiryDate(parseDateOrMonth(expiryDate));
         request.setCondition(condition);
         request.setRemarks(remarks);
 
@@ -71,6 +74,15 @@ public class DonationController {
                 .body(donationService.createDonation(request, principal.getId()));
     }
 
+    private LocalDate parseDateOrMonth(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.length() == 7
+                ? LocalDate.parse(value + "-01")
+                : LocalDate.parse(value);
+    }
+
     @GetMapping
     public ResponseEntity<List<DonationResponse>> getDonations(
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -79,6 +91,17 @@ public class DonationController {
             return ResponseEntity.ok(donationService.getDonationsByDonor(principal.getId()));
         }
         return ResponseEntity.ok(donationService.getAllDonations());
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<PagedResponse<DonationResponse>> getDonationsPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        RoleType role = principal.getUser().getRole().getRoleName();
+        return ResponseEntity.ok(donationService.getDonationsPage(
+                role == RoleType.DONOR ? principal.getId() : null,
+                PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), 100))));
     }
 
     @GetMapping("/available")

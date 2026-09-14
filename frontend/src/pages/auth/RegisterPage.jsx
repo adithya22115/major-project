@@ -36,6 +36,14 @@ const RegisterPage = () => {
   const location = useLocation();
 
   const isPharmacy = formData.roleId === '3';
+  const isDoctor = formData.roleId === '4';
+
+  React.useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      roleId: location.pathname === '/doctor-register' ? '4' : '3',
+    }));
+  }, [location.pathname]);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -151,6 +159,7 @@ const RegisterPage = () => {
       const role = response.user?.role;
       let redirectPath = '/';
       if (role === 'PHARMACY')       redirectPath = '/pharmacy/verification';
+      else if (role === 'DOCTOR')    redirectPath = '/doctor/dashboard';
       else if (role === 'DONOR')     redirectPath = '/donor/dashboard';
       else if (role === 'RECIPIENT') redirectPath = '/recipient/dashboard';
       
@@ -182,22 +191,49 @@ const RegisterPage = () => {
           <div className="bg-surface rounded-2xl shadow-xl border border-theme overflow-hidden">
 
             {/* Card Header */}
-            <div className={`px-6 py-8 text-center ${isPharmacy ? 'bg-gradient-to-r from-emerald-700 to-teal-800' : 'bg-gradient-to-r from-blue-700 to-indigo-800'}`}>
+            <div className={`px-6 py-8 text-center ${
+              isPharmacy ? 'bg-gradient-to-r from-emerald-700 to-teal-800'
+                : isDoctor ? 'bg-gradient-to-r from-indigo-700 to-violet-800'
+                : 'bg-gradient-to-r from-blue-700 to-indigo-800'
+            }`}>
               <div className="mx-auto bg-white/20 h-16 w-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm border border-white/30">
-                {isPharmacy ? <Store className="h-8 w-8 text-white" /> : <UserPlus className="h-8 w-8 text-white" />}
+                {isPharmacy ? <Store className="h-8 w-8 text-white" /> : isDoctor ? <Shield className="h-8 w-8 text-white" /> : <UserPlus className="h-8 w-8 text-white" />}
               </div>
               <h2 className="text-3xl font-extrabold text-white tracking-tight">
-                {isPharmacy ? 'Register Your Pharmacy' : 'Create an Account'}
+                {isPharmacy ? 'Register Your Pharmacy' : isDoctor ? 'Register as a Doctor' : 'Create an Account'}
               </h2>
               <p className="mt-2 text-white/70">
                 {isPharmacy
                   ? 'Create your account and submit verification documents in one step'
+                  : isDoctor
+                    ? 'Create your doctor account to manage patient consultations'
                   : 'Join MediCycle and start making a difference'}
               </p>
             </div>
 
             {/* Card Body */}
             <div className="p-8">
+              <div className="flex gap-2 mb-6 p-1 bg-surface2 rounded-xl border border-theme">
+                <button
+                  type="button"
+                  onClick={() => navigate('/register')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    isPharmacy ? 'bg-emerald-600 text-white' : 'text-muted hover:text-primary'
+                  }`}
+                >
+                  Pharmacist / Pharmacy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/doctor-register')}
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    isDoctor ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
+                  }`}
+                >
+                  Doctor
+                </button>
+              </div>
+
               {error && (
                 <div className="mb-6 bg-red-500/10 border border-red-500/40 p-4 rounded-xl">
                   <p className="text-sm text-red-400">{error}</p>
@@ -215,7 +251,7 @@ const RegisterPage = () => {
                   </div>
 
                   <div>
-                    <label className={labelClass}>{isPharmacy ? 'Owner / Pharmacist Name' : 'Full Name (or Organization)'}</label>
+                    <label className={labelClass}>{isPharmacy ? 'Owner / Pharmacist Name' : isDoctor ? 'Doctor Name' : 'Full Name (or Organization)'}</label>
                     <input name="name" type="text" required className={inputClass} value={formData.name} onChange={handleChange} />
                   </div>
 
@@ -363,6 +399,8 @@ const RegisterPage = () => {
                   className={`w-full flex justify-center items-center py-3 px-4 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all shadow-md ${
                     isPharmacy
                       ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20 hover:shadow-emerald-600/40'
+                      : isDoctor
+                        ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20 hover:shadow-indigo-600/40'
                       : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20 hover:shadow-blue-600/40'
                   }`}
                 >
@@ -370,6 +408,8 @@ const RegisterPage = () => {
                     <span className="animate-spin inline-block h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
                   ) : isPharmacy ? (
                     'Register & Submit Verification'
+                  ) : isDoctor ? (
+                    'Create Doctor Account'
                   ) : (
                     'Create Account'
                   )}

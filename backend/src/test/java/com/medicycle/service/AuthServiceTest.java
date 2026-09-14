@@ -20,7 +20,6 @@ import com.medicycle.security.TwoFactorService;
 import com.medicycle.security.UserPrincipal;
 import io.github.bucket4j.ConsumptionProbe;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,22 +40,37 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private RoleRepository roleRepository;
-    @Mock private VerificationTokenRepository verificationTokenRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private PasswordHistoryRepository passwordHistoryRepository;
-    @Mock private PasswordEncoder passwordEncoder;
-    @Mock private JwtService jwtService;
-    @Mock private AuthenticationManager authenticationManager;
-    @Mock private AuditService auditService;
-    @Mock private EmailService emailService;
-    @Mock private TwoFactorService twoFactorService;
-    @Mock private PasswordValidator passwordValidator;
-    @Mock private RateLimiterService rateLimiterService;
-    @Mock private HttpServletRequest httpServletRequest;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private RoleRepository roleRepository;
+    @Mock
+    private VerificationTokenRepository verificationTokenRepository;
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private PasswordHistoryRepository passwordHistoryRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    @Mock
+    private JwtService jwtService;
+    @Mock
+    private AuthenticationManager authenticationManager;
+    @Mock
+    private AuditService auditService;
+    @Mock
+    private EmailService emailService;
+    @Mock
+    private TwoFactorService twoFactorService;
+    @Mock
+    private PasswordValidator passwordValidator;
+    @Mock
+    private RateLimiterService rateLimiterService;
+    @Mock
+    private HttpServletRequest httpServletRequest;
 
-    @InjectMocks private AuthService authService;
+    @InjectMocks
+    private AuthService authService;
 
     private Role donorRole;
     private User testUser;

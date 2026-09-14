@@ -21,3 +21,13 @@ export const updateUserStatus = async (id, data) => {
   const response = await api.put(`/admin/users/${id}/status`, data);
   return response.data;
 };
+
+export const askAdminQuery = async (query) => {
+  const response = await api.post('/admin/query', { query });
+  return response.data;
+};
+
+export const getDemandForecast = async (months = 6, city) => {
+  const response = await api.get('/admin/demand-forecast', { params: { months, city } });
+  return response.data;
+};

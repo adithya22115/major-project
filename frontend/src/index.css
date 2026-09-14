@@ -49,6 +49,26 @@ body {
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+button, input, select, textarea {
+  max-width: 100%;
+}
+
+/* Keep data-heavy views usable on phones without shrinking tables into unreadable text. */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 /* Custom scrollbar */

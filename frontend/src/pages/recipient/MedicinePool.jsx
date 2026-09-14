@@ -242,6 +242,11 @@ const MedicinePool = () => {
                   <span className="text-muted whitespace-nowrap">
                     {loc.availableQuantity} qty
                   </span>
+                  {loc.matchScore != null && (
+                    <span className="text-emerald-400 whitespace-nowrap">
+                      {Math.round(loc.matchScore)}% match
+                    </span>
+                  )}
                 </div>
                 <a
                   href={loc.directionsUrl}

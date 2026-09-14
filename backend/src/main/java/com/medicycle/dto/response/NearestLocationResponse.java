@@ -31,6 +31,7 @@ public class NearestLocationResponse {
         private double distanceKm;
         private int availableQuantity;
         private long donationCount;
+        private double matchScore;
         private String directionsUrl;
     }
 }

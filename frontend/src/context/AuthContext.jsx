@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (formData) => {
-    const roleMap = { '1': 'DONOR', '2': 'RECIPIENT', '3': 'PHARMACY' };
+    const roleMap = { '1': 'DONOR', '2': 'RECIPIENT', '3': 'PHARMACY', '4': 'DOCTOR' };
     const payload = {
       name: formData.name,
       email: formData.email,

@@ -47,4 +47,3 @@ build/
 
 # Application configuration (contains sensitive data)
 src/main/resources/application.properties
-src/main/resources/application.properties.example

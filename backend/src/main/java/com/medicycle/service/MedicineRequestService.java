@@ -3,6 +3,7 @@ package com.medicycle.service;
 import com.medicycle.dto.request.MedicineRequestDto;
 import com.medicycle.dto.request.RequestStatusUpdate;
 import com.medicycle.dto.response.MedicineRequestResponse;
+import com.medicycle.dto.response.PagedResponse;
 import com.medicycle.entity.*;
 import com.medicycle.enums.RequestStatus;
 import com.medicycle.enums.RoleType;
@@ -14,6 +15,8 @@ import com.medicycle.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -105,6 +108,17 @@ public class MedicineRequestService {
         return requestRepository.findByRecipientId(recipientId).stream()
                 .map(DtoMapper::toMedicineRequestResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<MedicineRequestResponse> getRequestsPage(Long recipientId, Pageable pageable) {
+        Page<MedicineRequest> page = recipientId == null
+                ? requestRepository.findAllPage(pageable)
+                : requestRepository.findByRecipientIdPage(recipientId, pageable);
+        return PagedResponse.<MedicineRequestResponse>builder()
+                .content(page.getContent().stream().map(DtoMapper::toMedicineRequestResponse).toList())
+                .page(page.getNumber()).size(page.getSize()).totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages()).last(page.isLast()).build();
     }
 
     @Transactional

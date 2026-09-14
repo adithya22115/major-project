@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createDonation } from '../../services/donationService';
+import { analyzeMedicineImage, createDonation } from '../../services/donationService';
 import FileUpload from '../../components/common/FileUpload';
 import { toast } from 'react-hot-toast';
 import { Save, X } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Save, X } from 'lucide-react';
 const DonateMedicine = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   
   const [formData, setFormData] = useState({
     medicineName: '',
@@ -63,6 +64,34 @@ const DonateMedicine = () => {
       toast.error(err.response?.data?.message || 'Failed to submit donation');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAnalyzeImage = async () => {
+    if (!images[0]) {
+      toast.error('Upload a medicine photo first');
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      const result = await analyzeMedicineImage(images[0], formData.medicineName, formData.dosage);
+      const extracted = result.extractedFields || result;
+      setFormData(prev => ({
+        ...prev,
+        medicineName: extracted.medicineName || prev.medicineName,
+        dosage: extracted.dosage || prev.dosage,
+        quantity: extracted.quantity != null ? String(extracted.quantity) : prev.quantity,
+        expiryDate: extracted.expiryDate ? extracted.expiryDate.slice(0, 7) : prev.expiryDate,
+      }));
+      if (result.warning || result.mismatchWarning) {
+        toast.error(result.warning || result.mismatchWarning);
+      } else {
+        toast.success(`Image analyzed (${Math.round((result.confidence || 0) * 100)}% confidence). Review the fields before submitting.`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not analyze the image. You can enter the details manually.');
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -174,6 +203,15 @@ const DonateMedicine = () => {
               multiple={true}
               maxSize={5}
             />
+            <button
+              type="button"
+              onClick={handleAnalyzeImage}
+              disabled={analyzing || images.length === 0}
+              className="mt-3 px-4 py-2 border border-blue-500 text-blue-500 rounded-lg font-medium hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {analyzing ? 'Analyzing...' : 'Analyze image and auto-fill'}
+            </button>
+            <p className="text-xs text-subtle mt-2">AI suggestions are not a substitute for checking the package yourself. You can edit every field.</p>
           </div>
           
           <div>

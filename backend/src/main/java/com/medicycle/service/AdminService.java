@@ -8,6 +8,8 @@ import com.medicycle.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,10 +35,10 @@ public class AdminService {
         long totalRecipients = userRepository.countByRole_RoleName(RoleType.RECIPIENT);
         long totalPharmacies = userRepository.countByRole_RoleName(RoleType.PHARMACY);
         long totalMedicines = medicineRepository.count();
-        long pendingDonations = donationRepository.findByStatus(DonationStatus.PENDING).size();
-        long approvedDonations = donationRepository.findByStatus(DonationStatus.APPROVED).size();
-        long pendingRequests = requestRepository.findByStatus(RequestStatus.PENDING).size();
-        long completedRequests = requestRepository.findByStatus(RequestStatus.COMPLETED).size();
+        long pendingDonations = donationRepository.countByStatus(DonationStatus.PENDING);
+        long approvedDonations = donationRepository.countByStatus(DonationStatus.APPROVED);
+        long pendingRequests = requestRepository.countByStatus(RequestStatus.PENDING);
+        long completedRequests = requestRepository.countByStatus(RequestStatus.COMPLETED);
         long totalInventoryItems = inventoryRepository.count();
 
         List<AuditLogResponse> recentLogs = auditLogRepository.findTop50ByOrderByTimestampDesc().stream()
@@ -76,9 +78,9 @@ public class AdminService {
                 .map(d -> DtoMapper.toDonationResponse(d, List.of()))
                 .toList();
 
-        long pendingDonations = allDonations.stream().filter(d -> d.getStatus() == DonationStatus.PENDING).count();
-        long approvedDonations = allDonations.stream().filter(d -> d.getStatus() == DonationStatus.APPROVED).count();
-        long rejectedDonations = allDonations.stream().filter(d -> d.getStatus() == DonationStatus.REJECTED).count();
+        long pendingDonations = donationRepository.countByStatus(DonationStatus.PENDING);
+        long approvedDonations = donationRepository.countByStatus(DonationStatus.APPROVED);
+        long rejectedDonations = donationRepository.countByStatus(DonationStatus.REJECTED);
         long totalDonationQuantity = allDonations.stream().mapToInt(d -> d.getQuantity()).sum();
 
         List<com.medicycle.entity.MedicineRequest> allRequests = requestRepository.findAll();
@@ -86,10 +88,10 @@ public class AdminService {
                 .map(DtoMapper::toMedicineRequestResponse)
                 .toList();
 
-        long pendingRequests = allRequests.stream().filter(r -> r.getStatus() == RequestStatus.PENDING).count();
-        long approvedRequests = allRequests.stream().filter(r -> r.getStatus() == RequestStatus.APPROVED).count();
-        long completedRequests = allRequests.stream().filter(r -> r.getStatus() == RequestStatus.COMPLETED).count();
-        long rejectedRequests = allRequests.stream().filter(r -> r.getStatus() == RequestStatus.REJECTED).count();
+        long pendingRequests = requestRepository.countByStatus(RequestStatus.PENDING);
+        long approvedRequests = requestRepository.countByStatus(RequestStatus.APPROVED);
+        long completedRequests = requestRepository.countByStatus(RequestStatus.COMPLETED);
+        long rejectedRequests = requestRepository.countByStatus(RequestStatus.REJECTED);
 
         long totalPrescriptions = prescriptionRepository.count();
         long totalMedicines = medicineRepository.count();
@@ -144,6 +146,15 @@ public class AdminService {
         return userRepository.findByOrderByIdDesc().stream()
                 .map(DtoMapper::toUserResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<UserResponse> getUsersPage(Pageable pageable) {
+        Page<User> page = userRepository.findAllByOrderByIdDesc(pageable);
+        return PagedResponse.<UserResponse>builder()
+                .content(page.getContent().stream().map(DtoMapper::toUserResponse).toList())
+                .page(page.getNumber()).size(page.getSize()).totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages()).last(page.isLast()).build();
     }
 
     @Transactional

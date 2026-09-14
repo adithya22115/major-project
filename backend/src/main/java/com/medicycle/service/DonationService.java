@@ -3,6 +3,7 @@ package com.medicycle.service;
 import com.medicycle.dto.request.DonationRequest;
 import com.medicycle.dto.response.DonationResponse;
 import com.medicycle.dto.response.NearestLocationResponse;
+import com.medicycle.dto.response.PagedResponse;
 import com.medicycle.entity.Medicine;
 import com.medicycle.entity.MedicineDonation;
 import com.medicycle.entity.MedicineImage;
@@ -17,9 +18,13 @@ import com.medicycle.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -137,6 +142,17 @@ public class DonationService {
     }
 
     @Transactional(readOnly = true)
+    public PagedResponse<DonationResponse> getDonationsPage(Long donorId, Pageable pageable) {
+        Page<MedicineDonation> page = donorId == null
+                ? donationRepository.findAllPage(pageable)
+                : donationRepository.findByDonorIdPage(donorId, pageable);
+        return PagedResponse.<DonationResponse>builder()
+                .content(page.getContent().stream().map(d -> DtoMapper.toDonationResponse(d, getImageUrls(d.getId()))).toList())
+                .page(page.getNumber()).size(page.getSize()).totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages()).last(page.isLast()).build();
+    }
+
+    @Transactional(readOnly = true)
     public List<DonationResponse> getAvailableDonationsByCity(String city) {
         return donationRepository.findByStatusAndCityIgnoreCase(DonationStatus.APPROVED, city).stream()
                 .map(d -> DtoMapper.toDonationResponse(d, getImageUrls(d.getId())))
@@ -212,19 +228,19 @@ public class DonationService {
                     .distanceKm(Math.round(distance * 10.0) / 10.0)
                     .availableQuantity(d.getQuantity())
                     .donationCount(1)
+                    .matchScore(calculateMatchScore(distance, d.getExpiryDate(), d.getQuantity()))
                     .directionsUrl(directionsUrl)
                     .build(),
                     (existing, incoming) -> {
                         existing.setAvailableQuantity(existing.getAvailableQuantity() + incoming.getAvailableQuantity());
                         existing.setDonationCount(existing.getDonationCount() + 1);
+                        existing.setMatchScore(Math.max(existing.getMatchScore(), incoming.getMatchScore()));
                         return existing;
                     });
         }
 
         List<NearestLocationResponse.LocationAvailability> sorted = new ArrayList<>(locationMap.values());
-        if (latitude != null && longitude != null) {
-            sorted.sort((a, b) -> Double.compare(a.getDistanceKm(), b.getDistanceKm()));
-        }
+        sorted.sort((a, b) -> Double.compare(b.getMatchScore(), a.getMatchScore()));
 
         return NearestLocationResponse.builder()
                 .medicineId(medicineId)
@@ -233,6 +249,17 @@ public class DonationService {
                 .availableInCity(availableInCity)
                 .nearestLocations(sorted)
                 .build();
+    }
+
+    private double calculateMatchScore(double distanceKm, LocalDate expiryDate, int quantity) {
+        double distanceScore = Math.max(0, 50 - Math.min(distanceKm, 50));
+        double urgencyScore = 0;
+        if (expiryDate != null) {
+            long days = ChronoUnit.DAYS.between(LocalDate.now(), expiryDate);
+            urgencyScore = Math.max(0, 25 - Math.min(Math.max(days, 0), 180) * 25 / 180.0);
+        }
+        double quantityScore = Math.min(15, Math.max(0, quantity) / 10.0);
+        return Math.round((distanceScore + urgencyScore + quantityScore + 10) * 10.0) / 10.0;
     }
 
     private double haversineDistance(double lat1, double lon1, double lat2, double lon2) {

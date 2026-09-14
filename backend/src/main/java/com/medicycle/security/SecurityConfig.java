@@ -62,6 +62,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/auth/**").permitAll()
                             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/medicines/**").authenticated()
+                            .requestMatchers(HttpMethod.POST, "/api/medicines/analyze-image").hasAnyRole("DONOR", "ADMIN")
                             .requestMatchers(HttpMethod.POST, "/api/medicines/**").hasAnyRole("ADMIN")
                             .requestMatchers(HttpMethod.PUT, "/api/medicines/**").hasAnyRole("ADMIN")
                             .requestMatchers(HttpMethod.DELETE, "/api/medicines/**").hasAnyRole("ADMIN")
@@ -82,6 +83,9 @@ public class SecurityConfig {
                             .requestMatchers("/api/users/2fa/**").authenticated()
                             .requestMatchers("/api/users/location").authenticated()
                             .requestMatchers("/api/health-assistant/**").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/doctor-appointments").authenticated()
+                            .requestMatchers(HttpMethod.GET, "/api/doctor-appointments").authenticated()
+                            .requestMatchers(HttpMethod.PUT, "/api/doctor-appointments/**").hasAnyRole("DOCTOR", "ADMIN")
                             .anyRequest().authenticated();
                     if (h2ConsoleEnabled) {
                         auth.requestMatchers("/h2-console/**").permitAll();
