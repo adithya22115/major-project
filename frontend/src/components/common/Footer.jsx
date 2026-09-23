@@ -1,7 +1,28 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Pill, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleNavClick = (e, targetHash) => {
+    e.preventDefault();
+    if (location.pathname === '/') {
+      if (!targetHash) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const id = targetHash.replace('#', '');
+        const elem = document.getElementById(id);
+        if (elem) {
+          elem.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    } else {
+      navigate('/' + (targetHash || ''));
+    }
+  };
+
   return (
     <footer className="bg-slate-950 dark:bg-[#0a0f1a] text-slate-400 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -21,10 +42,10 @@ const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-blue-400 transition-colors">Home</a></li>
-              <li><a href="#about" className="hover:text-blue-400 transition-colors">About Us</a></li>
-              <li><a href="#how-it-works" className="hover:text-blue-400 transition-colors">How It Works</a></li>
-              <li><a href="#faq" className="hover:text-blue-400 transition-colors">FAQ</a></li>
+              <li><a href="/" onClick={(e) => handleNavClick(e, '')} className="hover:text-blue-400 transition-colors">Home</a></li>
+              <li><a href="/#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-blue-400 transition-colors">About Us</a></li>
+              <li><a href="/#how-it-works" onClick={(e) => handleNavClick(e, '#how-it-works')} className="hover:text-blue-400 transition-colors">How It Works</a></li>
+              <li><a href="/#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-blue-400 transition-colors">FAQ</a></li>
             </ul>
           </div>
 

@@ -14,3 +14,8 @@ export const updateRequestStatus = async (id, data) => {
   const response = await api.put(`/requests/${id}`, data);
   return response.data;
 };
+
+export const approveRequestForQr = async (id) => {
+  const response = await api.put(`/requests/${id}/approve-for-qr`);
+  return response.data;
+};

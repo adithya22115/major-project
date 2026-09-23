@@ -9,6 +9,7 @@ const DonateMedicine = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [imageDecision, setImageDecision] = useState(null);
   
   const [formData, setFormData] = useState({
     medicineName: '',
@@ -37,6 +38,10 @@ const DonateMedicine = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (imageDecision === 'REJECT') {
+      toast.error('This medicine is expired and cannot be donated.');
+      return;
+    }
     
     // Validate expiry date is in future
     if (new Date(formData.expiryDate) <= new Date()) {
@@ -82,7 +87,14 @@ const DonateMedicine = () => {
         dosage: extracted.dosage || prev.dosage,
         quantity: extracted.quantity != null ? String(extracted.quantity) : prev.quantity,
         expiryDate: extracted.expiryDate ? extracted.expiryDate.slice(0, 7) : prev.expiryDate,
+        batchNumber: extracted.batchNumber || prev.batchNumber,
       }));
+      setImageDecision(result.decision || null);
+      if (result.decision === 'REJECT') {
+        toast.error('The image shows an expired medicine. Donation is blocked.');
+      } else if (result.decision === 'MANUAL_VERIFICATION') {
+        toast.error('Packaging or expiry could not be verified. A pharmacist must manually verify it.');
+      }
       if (result.warning || result.mismatchWarning) {
         toast.error(result.warning || result.mismatchWarning);
       } else {
@@ -212,6 +224,17 @@ const DonateMedicine = () => {
               {analyzing ? 'Analyzing...' : 'Analyze image and auto-fill'}
             </button>
             <p className="text-xs text-subtle mt-2">AI suggestions are not a substitute for checking the package yourself. You can edit every field.</p>
+            {imageDecision && (
+              <div className={`mt-3 rounded-lg border p-3 text-sm ${
+                imageDecision === 'CONTINUE' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : imageDecision === 'REJECT' ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+              }`}>
+                {imageDecision === 'CONTINUE' && 'Packaging found. Expiry is valid. Continue with pharmacist verification.'}
+                {imageDecision === 'REJECT' && 'Expired medicine detected. This donation cannot be submitted.'}
+                {imageDecision === 'MANUAL_VERIFICATION' && 'Packaging or expiry could not be read. Submit only for manual pharmacist verification.'}
+              </div>
+            )}
           </div>
           
           <div>

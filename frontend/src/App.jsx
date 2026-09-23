@@ -32,6 +32,12 @@ import PendingDonations from './pages/pharmacy/PendingDonations';
 import InventoryManagement from './pages/pharmacy/InventoryManagement';
 import PharmacyRequests from './pages/pharmacy/PharmacyRequests';
 import PharmacyVerification from './pages/pharmacy/PharmacyVerification';
+import PharmacyRegisterPage from './pages/pharmacy/PharmacyRegisterPage';
+
+// Doctor pages
+import DoctorDashboard from './pages/doctor/DoctorDashboard';
+import DoctorVerification from './pages/doctor/DoctorVerification';
+import DoctorRegisterPage from './pages/doctor/DoctorRegisterPage';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -40,7 +46,6 @@ import AdminMedicines from './pages/admin/AdminMedicines';
 import AdminVerifications from './pages/admin/AdminVerifications';
 import Reports from './pages/admin/Reports';
 import Settings from './pages/admin/Settings';
-import DoctorDashboard from './pages/doctor/DoctorDashboard';
 
 // Shared pages
 import Profile from './pages/Profile';
@@ -67,7 +72,7 @@ function App() {
       case 'RECIPIENT': return '/recipient/dashboard';
       case 'PHARMACY': return verified ? '/pharmacy/dashboard' : '/pharmacy/verification';
       case 'ADMIN': return '/admin/dashboard';
-      case 'DOCTOR': return '/doctor/dashboard';
+      case 'DOCTOR': return verified ? '/doctor/dashboard' : '/doctor/verification';
       default: return '/';
     }
   };
@@ -104,12 +109,25 @@ function App() {
           {/* Reset Password */}
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Register — public, redirects if already logged in */}
+          {/* General Register */}
           <Route path="/register" element={
             (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <RegisterPage />
           } />
+
+          {/* Dedicated Doctor Registration */}
           <Route path="/doctor-register" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <RegisterPage />
+            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <DoctorRegisterPage />
+          } />
+          <Route path="/doctor/register" element={
+            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <DoctorRegisterPage />
+          } />
+
+          {/* Dedicated Pharmacy Registration */}
+          <Route path="/pharmacy-register" element={
+            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <PharmacyRegisterPage />
+          } />
+          <Route path="/pharmacy/register" element={
+            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <PharmacyRegisterPage />
           } />
 
 
@@ -150,6 +168,16 @@ function App() {
               </>
             )}
 
+            {/* Doctor Routes */}
+            {isDoctor && (
+              <>
+                <Route path="/doctor/verification" element={<DoctorVerification />} />
+                {user.verified && (
+                  <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+                )}
+              </>
+            )}
+
             {/* Admin Routes */}
             {isAdmin && (
               <>
@@ -161,7 +189,6 @@ function App() {
                 <Route path="/admin/settings" element={<Settings />} />
               </>
             )}
-            {isDoctor && <Route path="/doctor/dashboard" element={<DoctorDashboard />} />}
 
             {/* Shared Routes for authenticated users */}
             {user && (

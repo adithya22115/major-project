@@ -31,6 +31,7 @@ public class MedicineRequestService {
     private final InventoryService inventoryService;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     @Transactional
     public MedicineRequestResponse createRequest(MedicineRequestDto dto, Long recipientId) {
@@ -139,32 +140,107 @@ public class MedicineRequestService {
         if (update.getStatus() == RequestStatus.APPROVED || update.getStatus() == RequestStatus.COMPLETED) {
             medicineRequest.setStatus(RequestStatus.COMPLETED);
             medicineRequest.setApprovedBy(approver);
-            inventoryService.completeDistribution(medicine, quantity);
-
             notificationService.createNotification(
                     medicineRequest.getRecipient(),
                     "Request Completed",
                     "Your request for " + medicine.getMedicineName() + " has been approved and completed.",
                     "REQUEST");
-
+            inventoryService.completeDistribution(medicine, quantity);
             auditService.log(approver, "REQUEST_COMPLETED", "MedicineRequest", medicineRequest.getId());
-        } else if (update.getStatus() == RequestStatus.REJECTED) {
+
+            String remarks = (update.getRemarks() != null && !update.getRemarks().isBlank())
+                    ? update.getRemarks()
+                    : "Your request has been approved and completed.";
+
+            emailService.sendMedicineRequestStatusEmail(
+                    medicineRequest.getRecipient().getEmail(),
+                    medicineRequest.getRecipient().getName(),
+                    medicine.getMedicineName(),
+                    true,
+                    remarks);
+        } else if (update.getStatus() == RequestStatus.REJECTED && (medicineRequest.getStatus() == RequestStatus.PENDING || medicineRequest.getStatus() == RequestStatus.APPROVED)) {
             medicineRequest.setStatus(RequestStatus.REJECTED);
             medicineRequest.setApprovedBy(approver);
             inventoryService.releaseReservedQuantity(medicine, quantity);
 
+            String rejectionReason = (update.getRemarks() != null && !update.getRemarks().isBlank())
+                    ? update.getRemarks()
+                    : "Request was rejected by verification staff.";
+
             notificationService.createNotification(
                     medicineRequest.getRecipient(),
                     "Request Rejected",
-                    "Your request for " + medicine.getMedicineName() + " was rejected.",
+                    "Your request for " + medicine.getMedicineName() + " was rejected. Reason: " + rejectionReason,
                     "REQUEST");
 
             auditService.log(approver, "REQUEST_REJECTED", "MedicineRequest", medicineRequest.getId());
+
+            emailService.sendMedicineRequestStatusEmail(
+                    medicineRequest.getRecipient().getEmail(),
+                    medicineRequest.getRecipient().getName(),
+                    medicine.getMedicineName(),
+                    false,
+                    rejectionReason);
         } else {
             throw new IllegalArgumentException("Invalid status update: " + update.getStatus());
         }
 
         medicineRequest = requestRepository.save(medicineRequest);
         return DtoMapper.toMedicineRequestResponse(medicineRequest);
+    }
+
+    @Transactional
+    public MedicineRequestResponse approveForQr(Long requestId, Long approverId) {
+        MedicineRequest medicineRequest = requestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found: " + requestId));
+        if (medicineRequest.getStatus() != RequestStatus.PENDING) {
+            throw new IllegalStateException("Request is not in PENDING status");
+        }
+        User approver = userRepository.findById(approverId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + approverId));
+        medicineRequest.setStatus(RequestStatus.APPROVED);
+        medicineRequest.setApprovedBy(approver);
+        notificationService.createNotification(
+                medicineRequest.getRecipient(),
+                "Request Approved",
+                "Your request for " + medicineRequest.getMedicine().getMedicineName() + " is approved and awaits QR verification at the pharmacy.",
+                "REQUEST");
+        auditService.log(approver, "REQUEST_APPROVED_FOR_QR", "MedicineRequest", requestId);
+
+        emailService.sendMedicineRequestStatusEmail(
+                medicineRequest.getRecipient().getEmail(),
+                medicineRequest.getRecipient().getName(),
+                medicineRequest.getMedicine().getMedicineName(),
+                true,
+                "Your request is approved and ready for pickup. Show your QR code at the pharmacy.");
+
+        return DtoMapper.toMedicineRequestResponse(requestRepository.save(medicineRequest));
+    }
+
+    @Transactional
+    public void completeApprovedRequest(MedicineRequest medicineRequest, Long approverId) {
+        if (medicineRequest.getStatus() != RequestStatus.APPROVED) {
+            throw new IllegalStateException("Request must be approved before dispensing");
+        }
+        User approver = userRepository.findById(approverId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + approverId));
+        medicineRequest.setStatus(RequestStatus.COMPLETED);
+        medicineRequest.setApprovedBy(approver);
+        inventoryService.completeDistribution(medicineRequest.getMedicine(), medicineRequest.getRequestedQuantity());
+        notificationService.createNotification(
+                medicineRequest.getRecipient(),
+                "Request Completed",
+                "Your request for " + medicineRequest.getMedicine().getMedicineName() + " has been dispensed after QR verification.",
+                "REQUEST");
+        auditService.log(approver, "REQUEST_COMPLETED", "MedicineRequest", medicineRequest.getId());
+
+        emailService.sendMedicineRequestStatusEmail(
+                medicineRequest.getRecipient().getEmail(),
+                medicineRequest.getRecipient().getName(),
+                medicineRequest.getMedicine().getMedicineName(),
+                true,
+                "Your requested medicine has been verified and dispensed by the pharmacy partner.");
+
+        requestRepository.save(medicineRequest);
     }
 }

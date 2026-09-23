@@ -187,30 +187,30 @@ const HealthAssistantWidget = () => {
           onClick={() => setIsOpen(true)}
           className="fixed z-50 group transition-all duration-300"
           style={{
-            bottom: isMobile ? 16 : 24,
+            bottom: isMobile ? 88 : 96,
             right: isMobile ? 16 : 24,
             width: isMobile ? 56 : 64,
             height: isMobile ? 56 : 64,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)',
+            background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%)',
             border: 'none',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1)',
+            boxShadow: '0 8px 32px rgba(37,99,235,0.4), 0 2px 8px rgba(0,0,0,0.1)',
             animation: pulseAnimation ? 'fabPulse 2s ease-in-out infinite' : 'none',
           }}
           onMouseEnter={e => {
             if (!isMobile) {
               e.currentTarget.style.transform = 'scale(1.08)';
-              e.currentTarget.style.boxShadow = '0 12px 40px rgba(99,102,241,0.5), 0 4px 12px rgba(0,0,0,0.15)';
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(37,99,235,0.5), 0 4px 12px rgba(0,0,0,0.15)';;
             }
           }}
           onMouseLeave={e => {
             if (!isMobile) {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1)';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(37,99,235,0.4), 0 2px 8px rgba(0,0,0,0.1)';;
             }
           }}
           aria-label="Open AI Health Assistant"
@@ -233,7 +233,7 @@ const HealthAssistantWidget = () => {
       {/* Tooltip label next to FAB (Desktop only) */}
       {!isOpen && !isMobile && (
         <div
-          className="fixed bottom-8 right-20 z-50 pointer-events-none hidden sm:block"
+          className="fixed bottom-12 right-20 z-50 pointer-events-none hidden sm:block"
           style={{
             background: 'rgba(15,23,42,0.9)',
             backdropFilter: 'blur(8px)',
@@ -1218,8 +1218,8 @@ const HealthAssistantWidget = () => {
       {/* CSS Animations & Responsive Styles */}
       <style>{`
         @keyframes fabPulse {
-          0%, 100% { box-shadow: 0 8px 32px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.1); }
-          50% { box-shadow: 0 8px 48px rgba(99,102,241,0.6), 0 2px 16px rgba(0,0,0,0.15); }
+          0%, 100% { box-shadow: 0 8px 32px rgba(37,99,235,0.4), 0 2px 8px rgba(0,0,0,0.1); }
+          50% { box-shadow: 0 8px 48px rgba(37,99,235,0.6), 0 2px 16px rgba(0,0,0,0.15); }
         }
         @keyframes dotPulse {
           0%, 100% { opacity: 1; }

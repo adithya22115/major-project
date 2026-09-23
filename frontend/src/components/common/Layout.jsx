@@ -45,7 +45,7 @@ const Layout = () => {
       />
 
       {/* Desktop Sidebar */}
-      <Sidebar mobile />
+      <Sidebar mobileOpen={mobileMenuOpen} onNavigate={() => setMobileMenuOpen(false)} />
 
       {/* Main Content Wrapper */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen transition-all duration-300">
@@ -96,7 +96,7 @@ const Layout = () => {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden bg-page">
+        <main className="flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-32 overflow-x-hidden bg-page">
           <div className="max-w-7xl mx-auto w-full">
             <Outlet />
           </div>
@@ -109,16 +109,9 @@ const Layout = () => {
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/80 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-slate-900/80 z-30 md:hidden backdrop-blur-sm"
           onClick={() => setMobileMenuOpen(false)}
-        >
-          <div
-            className="w-64 h-full bg-surface transform transition-transform shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Sidebar />
-          </div>
-        </div>
+        />
       )}
     </div>
   );

@@ -36,6 +36,7 @@ class VerificationServiceTest {
     @Mock private InventoryService inventoryService;
     @Mock private NotificationService notificationService;
     @Mock private AuditService auditService;
+    @Mock private EmailService emailService;
 
     @InjectMocks private VerificationService verificationService;
 

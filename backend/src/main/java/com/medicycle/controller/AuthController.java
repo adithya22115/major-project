@@ -4,6 +4,7 @@ import com.medicycle.dto.request.GuestRegisterRequest;
 import com.medicycle.dto.request.LoginRequest;
 import com.medicycle.dto.request.RegisterRequest;
 import com.medicycle.dto.response.AuthResponse;
+import com.medicycle.dto.response.EmailCheckResponse;
 import com.medicycle.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -96,5 +97,10 @@ public class AuthController {
     @PostMapping("/guest-register")
     public ResponseEntity<AuthResponse> guestRegister(@Valid @RequestBody GuestRegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.guestRegister(request));
+    }
+
+    @GetMapping("/check-email")
+    public ResponseEntity<EmailCheckResponse> checkEmail(@RequestParam("email") String email) {
+        return ResponseEntity.ok(authService.checkEmail(email));
     }
 }

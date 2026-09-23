@@ -1,6 +1,7 @@
 package com.medicycle.entity;
 
 import com.medicycle.enums.VerificationStatus;
+import com.medicycle.enums.VerificationType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -47,6 +48,11 @@ public class PharmacyVerification {
     @CollectionTable(name = "verification_documents", joinColumns = @JoinColumn(name = "verification_id"))
     @Builder.Default
     private List<String> documentUrls = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(50) default 'PHARMACY'")
+    @Builder.Default
+    private VerificationType verificationType = VerificationType.PHARMACY;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
@@ -208,7 +208,22 @@ const GuestModal = ({ role, onClose, onSuccess }) => {
 const LandingPage = () => {
   const [guestModal, setGuestModal] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '');
+      const elem = document.getElementById(id);
+      if (elem) {
+        setTimeout(() => {
+          elem.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location.hash, location.pathname]);
 
   const handleGuestSuccess = (role) => {
     setGuestModal(null);
@@ -245,9 +260,9 @@ const LandingPage = () => {
                 </button>
                 <button
                   onClick={() => setGuestModal('RECIPIENT')}
-                  className="bg-surface hover:bg-surface2 text-blue-500 border-2 border-blue-500/60 hover:border-blue-400 font-semibold px-8 py-4 rounded-xl text-lg transition-all flex items-center justify-center"
+                  className="bg-surface hover:bg-surface2 text-blue-500 border-2 border-blue-500/60 hover:border-blue-400 font-semibold px-8 py-4 rounded-xl text-lg transition-all flex items-center justify-center gap-2"
                 >
-                  Find Medicines
+                  Find Medicines <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -418,10 +433,10 @@ const LandingPage = () => {
       {/* Partners */}
       <section className="py-16 bg-page border-y border-theme">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm font-semibold text-subtle uppercase tracking-widest mb-8">
+          <p className="text-sm font-semibold text-subtle tracking-widest mb-8">
             Trusted by Partner Pharmacies & NGOs
           </p>
-          <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-40 grayscale">
+          <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-70">
             {['Apollo Pharmacy', 'MedPlus', 'Jan Aushadhi', 'Red Cross India'].map((name) => (
               <div key={name} className="flex items-center gap-2">
                 <Building2 className="h-6 w-6 text-muted" />

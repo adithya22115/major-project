@@ -6,6 +6,7 @@ import com.medicycle.entity.PharmacyVerification;
 import com.medicycle.entity.User;
 import com.medicycle.enums.RoleType;
 import com.medicycle.enums.VerificationStatus;
+import com.medicycle.enums.VerificationType;
 import com.medicycle.exception.ResourceNotFoundException;
 import com.medicycle.repository.PharmacyVerificationRepository;
 import com.medicycle.repository.UserRepository;
@@ -24,6 +25,7 @@ public class PharmacyVerificationService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     @Transactional
     public PharmacyVerificationResponse submitVerification(PharmacyVerificationRequest request, Long userId) {
@@ -31,7 +33,7 @@ public class PharmacyVerificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
         if (user.getRole().getRoleName() != RoleType.PHARMACY) {
-            throw new IllegalArgumentException("Only pharmacy accounts can submit verification");
+            throw new IllegalArgumentException("Only pharmacy accounts can submit pharmacy verification");
         }
 
         if (verificationRepository.existsByUserIdAndStatus(userId, VerificationStatus.APPROVED)) {
@@ -62,6 +64,8 @@ public class PharmacyVerificationService {
         if (request.getDocumentUrls() != null) {
             verification.setDocumentUrls(request.getDocumentUrls());
         }
+        verification.setVerificationType(
+                request.getVerificationType() != null ? request.getVerificationType() : VerificationType.PHARMACY);
 
         verification = verificationRepository.save(verification);
 
@@ -120,6 +124,13 @@ public class PharmacyVerificationService {
                 "Your pharmacy verification has been approved. You can now access all pharmacy features.",
                 "VERIFICATION");
 
+        emailService.sendAccountVerificationStatusEmail(
+                user.getEmail(),
+                user.getName(),
+                user.getRole().getRoleName().name(),
+                true,
+                remarks);
+
         auditService.log(userRepository.findById(adminId).orElse(null),
                 "VERIFICATION_APPROVED", "PharmacyVerification", verification.getId());
 
@@ -145,6 +156,13 @@ public class PharmacyVerificationService {
                 "Your pharmacy verification was rejected. Reason: " + (remarks != null ? remarks : "Not specified") + ". Please resubmit with correct documents.",
                 "VERIFICATION");
 
+        emailService.sendAccountVerificationStatusEmail(
+                user.getEmail(),
+                user.getName(),
+                user.getRole().getRoleName().name(),
+                false,
+                remarks);
+
         auditService.log(userRepository.findById(adminId).orElse(null),
                 "VERIFICATION_REJECTED", "PharmacyVerification", verification.getId());
 
@@ -166,6 +184,7 @@ public class PharmacyVerificationService {
                 .contactPhone(v.getContactPhone())
                 .contactEmail(v.getContactEmail())
                 .documentUrls(v.getDocumentUrls())
+                .verificationType(v.getVerificationType())
                 .status(v.getStatus())
                 .adminRemarks(v.getAdminRemarks())
                 .submittedAt(v.getSubmittedAt())

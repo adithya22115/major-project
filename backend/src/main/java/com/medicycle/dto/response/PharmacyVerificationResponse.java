@@ -1,6 +1,7 @@
 package com.medicycle.dto.response;
 
 import com.medicycle.enums.VerificationStatus;
+import com.medicycle.enums.VerificationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,6 +28,7 @@ public class PharmacyVerificationResponse {
     private String contactPhone;
     private String contactEmail;
     private List<String> documentUrls;
+    private VerificationType verificationType;
     private VerificationStatus status;
     private String adminRemarks;
     private LocalDateTime submittedAt;

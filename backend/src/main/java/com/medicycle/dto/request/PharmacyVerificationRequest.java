@@ -1,5 +1,6 @@
 package com.medicycle.dto.request;
 
+import com.medicycle.enums.VerificationType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -9,13 +10,13 @@ import java.util.List;
 @Data
 public class PharmacyVerificationRequest {
 
-    @NotBlank(message = "Pharmacy name is required")
+    // For pharmacy: pharmacy name; for doctor: clinic/practice name
     private String pharmacyName;
 
-    @NotBlank(message = "License number is required")
+    // For pharmacy: drug license number; for doctor: medical registration number
     private String licenseNumber;
 
-    @NotBlank(message = "Pharmacy address is required")
+    @NotBlank(message = "Address is required")
     private String pharmacyAddress;
 
     private String city;
@@ -30,4 +31,7 @@ public class PharmacyVerificationRequest {
     private String contactEmail;
 
     private List<String> documentUrls;
+
+    // PHARMACY (default) or DOCTOR
+    private VerificationType verificationType = VerificationType.PHARMACY;
 }

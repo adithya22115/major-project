@@ -34,10 +34,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.medicycle.dto.response.EmailCheckResponse;
+
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import javax.naming.NamingException;
 import java.time.LocalDateTime;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -144,7 +153,8 @@ public class AuthService {
             throw new IllegalStateException("Too many login attempts. Please try again in " + waitSeconds + " seconds.");
         }
 
-        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        String cleanEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        User user = userRepository.findByEmailIgnoreCase(cleanEmail).orElse(null);
 
         if (user != null && user.getLockedUntil() != null) {
             if (LocalDateTime.now().isBefore(user.getLockedUntil())) {
@@ -159,7 +169,7 @@ public class AuthService {
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+                    new UsernamePasswordAuthenticationToken(cleanEmail, request.getPassword() != null ? request.getPassword().trim() : ""));
         } catch (Exception e) {
             if (user != null) {
                 loginAttemptService.handleFailedLogin(user);
@@ -497,5 +507,97 @@ public class AuthService {
             return request.getRemoteAddr();
         }
         return xfHeader.split(",")[0].trim();
+    }
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$"
+    );
+
+    @Transactional(readOnly = true)
+    public EmailCheckResponse checkEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return EmailCheckResponse.builder()
+                    .email("")
+                    .exists(false)
+                    .formatValid(false)
+                    .domainValid(false)
+                    .available(false)
+                    .message("Email cannot be empty")
+                    .build();
+        }
+
+        String normalizedEmail = email.trim().toLowerCase();
+
+        if (!EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
+            return EmailCheckResponse.builder()
+                    .email(normalizedEmail)
+                    .exists(false)
+                    .formatValid(false)
+                    .domainValid(false)
+                    .available(false)
+                    .message("Invalid email format")
+                    .build();
+        }
+
+        // Check if already registered in the database
+        boolean exists = userRepository.existsByEmail(normalizedEmail);
+        if (exists) {
+            return EmailCheckResponse.builder()
+                    .email(normalizedEmail)
+                    .exists(true)
+                    .formatValid(true)
+                    .domainValid(true)
+                    .available(false)
+                    .message("This email is already registered")
+                    .build();
+        }
+
+        // Real-time DNS check for active mail exchanger (MX) or host (A)
+        String domain = normalizedEmail.substring(normalizedEmail.indexOf('@') + 1);
+        boolean domainValid = checkDomainMailServer(domain);
+
+        if (!domainValid) {
+            return EmailCheckResponse.builder()
+                    .email(normalizedEmail)
+                    .exists(false)
+                    .formatValid(true)
+                    .domainValid(false)
+                    .available(false)
+                    .message("Domain '" + domain + "' does not exist or has no active mail server")
+                    .build();
+        }
+
+        return EmailCheckResponse.builder()
+                .email(normalizedEmail)
+                .exists(false)
+                .formatValid(true)
+                .domainValid(true)
+                .available(true)
+                .message("Email is available")
+                .build();
+    }
+
+    private boolean checkDomainMailServer(String domain) {
+        try {
+            Hashtable<String, String> env = new Hashtable<>();
+            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+            env.put("com.sun.jndi.dns.timeout.initial", "1500");
+            env.put("com.sun.jndi.dns.timeout.retries", "1");
+            DirContext ictx = new InitialDirContext(env);
+            Attributes attrs = ictx.getAttributes(domain, new String[] { "MX" });
+            Attribute attr = attrs.get("MX");
+            if (attr != null && attr.size() > 0) {
+                return true;
+            }
+            // Fallback: check if domain has an A record (some domains handle mail without explicit MX)
+            Attributes aAttrs = ictx.getAttributes(domain, new String[] { "A" });
+            return aAttrs != null && aAttrs.get("A") != null;
+        } catch (NamingException e) {
+            // DNS resolution failed -> domain does not exist
+            return false;
+        } catch (Exception e) {
+            // Network issue or timeout: fallback to true to prevent blocking valid user signup
+            return true;
+        }
     }
 }

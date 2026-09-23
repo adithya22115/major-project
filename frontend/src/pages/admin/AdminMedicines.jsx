@@ -105,7 +105,7 @@ const AdminMedicines = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Medicine Directory</h1>
+          <h2 className="text-2xl font-bold text-primary">Medicine Directory</h2>
           <p className="text-muted mt-1">Add, edit, or remove medicines from the catalog.</p>
         </div>
         <button
@@ -169,8 +169,8 @@ const AdminMedicines = () => {
 
       {/* Medicines Table */}
       <div className="bg-surface rounded-xl shadow-sm border border-theme overflow-hidden">
-        <div className="p-4 border-b border-theme bg-surface2/30">
-          <div className="max-w-md">
+        <div className="px-0 py-4 border-b border-theme bg-surface2/30">
+          <div className="max-w-md w-full">
             <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search medicines..." />
           </div>
         </div>
@@ -207,11 +207,11 @@ const AdminMedicines = () => {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEdit(med)} className="p-1.5 text-subtle hover:text-blue-400 transition-colors">
+                      <div className="flex gap-4">
+                        <button aria-label={`Edit ${med.medicineName}`} onClick={() => handleEdit(med)} className="p-2 text-subtle hover:text-blue-400 transition-colors">
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleDelete(med.id, med.medicineName)} className="p-1.5 text-subtle hover:text-red-400 transition-colors">
+                        <button aria-label={`Delete ${med.medicineName}`} onClick={() => handleDelete(med.id, med.medicineName)} className="p-2 text-subtle hover:text-red-400 transition-colors">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>

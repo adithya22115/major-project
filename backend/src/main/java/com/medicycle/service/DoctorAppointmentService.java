@@ -20,6 +20,8 @@ import java.util.List;
 public class DoctorAppointmentService {
     private final DoctorAppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Transactional
     public DoctorAppointmentResponse book(DoctorAppointmentRequest request, Long patientId) {
@@ -39,7 +41,7 @@ public class DoctorAppointmentService {
     @Transactional(readOnly = true)
     public List<DoctorAppointmentResponse> getForUser(User user) {
         RoleType role = user.getRole().getRoleName();
-        if (role == RoleType.DOCTOR) return appointmentRepository.findByDoctorId(user.getId()).stream().map(this::toResponse).toList();
+        if (role == RoleType.DOCTOR) return appointmentRepository.findForDoctor(user.getId()).stream().map(this::toResponse).toList();
         if (role == RoleType.ADMIN || role == RoleType.PHARMACY) return appointmentRepository.findAllForStaff().stream().map(this::toResponse).toList();
         return appointmentRepository.findByPatientId(user.getId()).stream().map(this::toResponse).toList();
     }
@@ -55,7 +57,34 @@ public class DoctorAppointmentService {
         }
         if (doctor.getRole().getRoleName() == RoleType.DOCTOR) appointment.setDoctor(doctor);
         appointment.setStatus(status);
-        return toResponse(appointmentRepository.save(appointment));
+        appointment = appointmentRepository.save(appointment);
+
+        // Notify and email patient regarding whether consultation request was accepted or declined
+        User patient = appointment.getPatient();
+        if (patient != null && patient.getEmail() != null) {
+            String doctorName = (doctor.getName() != null && !doctor.getName().isBlank()) ? doctor.getName() : "Doctor";
+            String title = (status == AppointmentStatus.CONFIRMED) ? "Consultation Request Accepted" :
+                           (status == AppointmentStatus.CANCELLED) ? "Consultation Request Declined" :
+                           "Consultation Completed";
+            String notifMsg = (status == AppointmentStatus.CONFIRMED)
+                    ? "Dr. " + doctorName + " has accepted your consultation request for " + appointment.getSpecialty() + "."
+                    : (status == AppointmentStatus.CANCELLED)
+                    ? "Your consultation request for " + appointment.getSpecialty() + " was declined by Dr. " + doctorName + "."
+                    : "Your consultation with Dr. " + doctorName + " is completed.";
+
+            notificationService.createNotification(patient, title, notifMsg, "APPOINTMENT");
+
+            emailService.sendAppointmentStatusEmail(
+                    patient.getEmail(),
+                    appointment.getPatientName() != null ? appointment.getPatientName() : patient.getName(),
+                    doctorName,
+                    appointment.getSpecialty(),
+                    appointment.getConsultationType(),
+                    status.name(),
+                    appointment.getNotes());
+        }
+
+        return toResponse(appointment);
     }
 
     private DoctorAppointmentResponse toResponse(DoctorAppointment a) {

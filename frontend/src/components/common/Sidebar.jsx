@@ -3,11 +3,11 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, PlusCircle, History, User,
   Package, ClipboardList, Clock, BarChart3, Users,
-  Pill, ShieldCheck, Settings, LogOut, FileCheck, BadgeCheck, Home
+  Pill, ShieldCheck, Settings, LogOut, FileCheck, Home
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar = ({ mobile = false }) => {
+const Sidebar = ({ mobileOpen = false, onNavigate }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -57,7 +57,10 @@ const Sidebar = ({ mobile = false }) => {
         ];
       case 'DOCTOR':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/doctor/dashboard' },
+          { icon: FileCheck,       label: 'Verification', path: '/doctor/verification' },
+          ...(user.verified ? [
+            { icon: LayoutDashboard, label: 'Dashboard', path: '/doctor/dashboard' },
+          ] : []),
           { icon: User,            label: 'Profile',   path: '/profile' },
         ];
       default:
@@ -69,7 +72,9 @@ const Sidebar = ({ mobile = false }) => {
   const isGuest = user?.isGuest;
 
   return (
-    <div className={`${mobile ? 'flex' : 'hidden md:flex'} w-64 max-w-[85vw] bg-surface border-r border-theme h-screen flex-col fixed left-0 top-0 z-40 transition-colors duration-200`}>
+    <div className={`w-64 max-w-[85vw] bg-surface border-r border-theme h-screen flex-col fixed left-0 top-0 z-40 transition-transform duration-200 ${
+      mobileOpen ? 'flex translate-x-0' : 'hidden md:flex md:translate-x-0'
+    }`}>
 
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-theme shrink-0">
@@ -89,6 +94,7 @@ const Sidebar = ({ mobile = false }) => {
             <NavLink
               key={index}
               to={item.path}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -104,25 +110,8 @@ const Sidebar = ({ mobile = false }) => {
         })}
       </div>
 
-      {/* User info + Actions */}
-      <div className="p-3 border-t border-theme space-y-1 shrink-0">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface2/50">
-          <div className="h-8 w-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
-            {user?.name?.charAt(0).toUpperCase() || 'U'}
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-semibold text-primary truncate">{user?.name}</p>
-              {user?.verified && user?.role === 'PHARMACY' && (
-                <BadgeCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-              )}
-            </div>
-            <p className="text-xs text-muted capitalize">
-              {user?.role?.toLowerCase()}
-              {isGuest && ' (Guest)'}
-            </p>
-          </div>
-        </div>
+      {/* Account action */}
+      <div className="p-3 border-t border-theme shrink-0">
         {isGuest ? (
           <button
             onClick={handleBackToHome}

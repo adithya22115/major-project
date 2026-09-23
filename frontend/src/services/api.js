@@ -70,7 +70,10 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        const path = window.location.pathname;
+        if (!['/login', '/register', '/doctor-register', '/staff-login', '/forgot-password', '/reset-password'].includes(path)) {
+          window.location.href = '/login';
+        }
         isRefreshing = false;
         return Promise.reject(error);
       }

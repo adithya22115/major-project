@@ -4,6 +4,9 @@ import com.medicycle.dto.response.InventoryResponse;
 import com.medicycle.dto.response.PagedResponse;
 import com.medicycle.entity.Inventory;
 import com.medicycle.entity.Medicine;
+import com.medicycle.dto.request.InventoryAdjustmentRequest;
+import com.medicycle.exception.ResourceNotFoundException;
+import com.medicycle.repository.MedicineRepository;
 import com.medicycle.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ import java.util.List;
 public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
+    private final MedicineRepository medicineRepository;
 
     @Transactional(readOnly = true)
     public List<InventoryResponse> getAllInventory() {
@@ -82,5 +86,21 @@ public class InventoryService {
         inventory.setReservedQuantity(inventory.getReservedQuantity() - quantity);
         inventory.setDistributedQuantity(inventory.getDistributedQuantity() + quantity);
         inventoryRepository.save(inventory);
+    }
+
+    @Transactional
+    public InventoryResponse adjustAvailableQuantity(InventoryAdjustmentRequest request) {
+        Medicine medicine = medicineRepository.findById(request.getMedicineId())
+                .orElseThrow(() -> new ResourceNotFoundException("Medicine not found: " + request.getMedicineId()));
+        Inventory inventory = getOrCreateInventory(medicine);
+        int current = inventory.getAvailableQuantity();
+        if (request.getType() == InventoryAdjustmentRequest.AdjustmentType.REMOVE
+                && current < request.getQuantity()) {
+            throw new IllegalStateException("Cannot remove more than the available quantity");
+        }
+        int delta = request.getType() == InventoryAdjustmentRequest.AdjustmentType.ADD
+                ? request.getQuantity() : -request.getQuantity();
+        inventory.setAvailableQuantity(current + delta);
+        return DtoMapper.toInventoryResponse(inventoryRepository.save(inventory));
     }
 }

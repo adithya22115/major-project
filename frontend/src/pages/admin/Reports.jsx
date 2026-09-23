@@ -238,7 +238,7 @@ const VerticalBarChart = ({ data }) => {
               }}
             />
             {/* label */}
-            <span className="text-[10px] text-muted mt-1.5 truncate w-full text-center">{d.label}</span>
+            <span className="text-[10px] text-muted mt-1.5 w-full text-center break-words leading-tight">{d.label}</span>
           </div>
         );
       })}
@@ -376,12 +376,12 @@ const Reports = () => {
     { label: 'Rejected', value: data.rejectedRequests || 0, color: '#ef4444' },
   ];
 
-  const cityData = (data.cityStats || [])
-    .sort((a, b) => (b.donationCount + b.requestCount) - (a.donationCount + a.requestCount))
-    .map((c, i) => ({
+  const cityData = [...(data.cityStats || [])]
+    .sort((a, b) => (b.donationCount + b.requestCount + b.userCount) - (a.donationCount + a.requestCount + a.userCount))
+    .map(c => ({
       label: c.city || 'Unknown',
       value: c.donationCount + c.requestCount + c.userCount,
-      color: `hsl(${210 + i * 35}, 65%, 55%)`,
+      color: '#3b82f6',
       segments: [
         { label: 'Donations', value: c.donationCount },
         { label: 'Requests', value: c.requestCount },
@@ -397,10 +397,10 @@ const Reports = () => {
   });
   const categoryData = Object.entries(categoryMap)
     .sort((a, b) => b[1] - a[1])
-    .map(([label, value], i) => ({
+    .map(([label, value]) => ({
       label,
       value,
-      color: `hsl(${160 + i * 45}, 60%, 50%)`,
+      color: '#3b82f6',
     }));
 
   const summaryStats = [
@@ -419,7 +419,7 @@ const Reports = () => {
         <div className="bg-blue-500/15 p-1.5 rounded-lg">
           <Icon className="w-4 h-4 text-blue-400" />
         </div>
-        <h3 className="text-sm font-semibold text-primary">{title}</h3>
+        <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -442,10 +442,10 @@ const Reports = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2.5">
+          <h2 className="text-2xl font-bold text-primary flex items-center gap-2.5">
             <BarChart3 className="w-7 h-7 text-blue-400" />
             Platform Reports
-          </h1>
+          </h2>
           <p className="text-muted mt-1">Analytics and insights across the entire platform.</p>
         </div>
         <div className="flex gap-2">
@@ -530,13 +530,13 @@ const Reports = () => {
       {/* Row 2: Bar Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {visiblePanels.cityActivity && (
-          <ChartCard title="Top Cities by Activity" icon={MapPin}>
+          <ChartCard title="Top Cities by Activity" icon={MapPin} className="h-full">
             <HorizontalBarChart data={cityData} maxBars={8} />
           </ChartCard>
         )}
 
         {visiblePanels.medicineCategory && (
-          <ChartCard title="Medicine Categories" icon={Pill}>
+          <ChartCard title="Medicine Categories" icon={Pill} className="h-full">
             <VerticalBarChart data={categoryData} />
           </ChartCard>
         )}

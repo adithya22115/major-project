@@ -43,6 +43,10 @@ public class MedicineDonation {
     private DonationStatus status = DonationStatus.PENDING;
 
     private String remarks;
+    private String packagingPhotoUrl;
+    private String qrCodeToken;
+    private String qrCodeFileName;
+    private Integer distributedQuantity;
 
     private String city;
     private String state;
@@ -56,5 +60,8 @@ public class MedicineDonation {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (distributedQuantity == null) {
+            distributedQuantity = 0;
+        }
     }
 }

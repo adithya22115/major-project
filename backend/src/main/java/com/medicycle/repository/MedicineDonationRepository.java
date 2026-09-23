@@ -12,8 +12,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Modifying;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface MedicineDonationRepository extends JpaRepository<MedicineDonation, Long> {
+    Optional<MedicineDonation> findByQrCodeToken(String qrCodeToken);
     List<MedicineDonation> findByDonor(User donor);
 
     @Query("SELECT d FROM MedicineDonation d JOIN FETCH d.donor JOIN FETCH d.medicine")

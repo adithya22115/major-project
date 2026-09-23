@@ -77,4 +77,12 @@ public class MedicineRequestController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(medicineRequestService.updateRequestStatus(id, update, principal.getId()));
     }
+
+    @PutMapping("/{id}/approve-for-qr")
+    @PreAuthorize("@userSecurity.isVerifiedPharmacy(authentication)")
+    public ResponseEntity<MedicineRequestResponse> approveForQr(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(medicineRequestService.approveForQr(id, principal.getId()));
+    }
 }

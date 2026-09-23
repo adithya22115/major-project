@@ -25,6 +25,7 @@ public class VerificationService {
     private final InventoryService inventoryService;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     @Transactional
     public VerificationResponse verifyDonation(Long donationId, VerificationRequest request, Long verifierId) {
@@ -47,7 +48,8 @@ public class VerificationService {
 
         verification = verificationRepository.save(verification);
 
-        if (request.getResult() == VerificationResult.APPROVED) {
+        boolean isApproved = request.getResult() == VerificationResult.APPROVED;
+        if (isApproved) {
             donation.setStatus(DonationStatus.APPROVED);
             inventoryService.addAvailableQuantity(donation.getMedicine(), donation.getQuantity());
             notificationService.createNotification(
@@ -64,6 +66,13 @@ public class VerificationService {
                             (request.getRemarks() != null ? request.getRemarks() : ""),
                     "DONATION");
         }
+
+        emailService.sendDonationStatusEmail(
+                donation.getDonor().getEmail(),
+                donation.getDonor().getName(),
+                donation.getMedicine().getMedicineName(),
+                isApproved,
+                request.getRemarks());
 
         donationRepository.save(donation);
         auditService.log(verifier, "DONATION_VERIFIED", "MedicineDonation", donation.getId());

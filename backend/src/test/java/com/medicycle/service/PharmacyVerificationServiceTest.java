@@ -32,6 +32,7 @@ class PharmacyVerificationServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private NotificationService notificationService;
     @Mock private AuditService auditService;
+    @Mock private EmailService emailService;
 
     @InjectMocks private PharmacyVerificationService pharmacyVerificationService;
 

@@ -27,6 +27,7 @@ public class AdminService {
     private final AuditLogRepository auditLogRepository;
     private final PrescriptionRepository prescriptionRepository;
     private final AuditService auditService;
+    private final EmailService emailService;
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard() {
@@ -164,6 +165,15 @@ public class AdminService {
         user.setVerified(verified);
         user = userRepository.save(user);
         auditService.log(user, verified ? "USER_VERIFIED" : "USER_SUSPENDED", "User", user.getId());
+
+        emailService.sendAccountVerificationStatusEmail(
+                user.getEmail(),
+                user.getName(),
+                user.getRole().getRoleName().name(),
+                verified,
+                verified ? "Your account has been verified and activated by an administrator."
+                         : "Your account access has been suspended by an administrator.");
+
         return DtoMapper.toUserResponse(user);
     }
 

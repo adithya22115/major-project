@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ImageVerificationResponse {
     private String medicineName;
+    private String batchNumber;
     private String dosage;
     private String expiryDate;
     private Integer quantity;
@@ -20,6 +21,9 @@ public class ImageVerificationResponse {
     private boolean medicineNameMismatch;
     private boolean dosageMismatch;
     private boolean analysisAvailable;
+    private boolean packagingAvailable;
+    private boolean expiryExpired;
+    private String decision;
     private List<String> warningFields;
     private List<String> warnings;
 }

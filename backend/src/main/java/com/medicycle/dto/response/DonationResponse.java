@@ -29,6 +29,9 @@ public class DonationResponse {
     private String condition;
     private DonationStatus status;
     private String remarks;
+    private String packagingPhotoUrl;
+    private String qrCodeToken;
+    private Integer distributedQuantity;
     private String city;
     private String state;
     private String pincode;

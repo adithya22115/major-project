@@ -13,6 +13,8 @@ const roleBadge = {
   PHARMACY:  'bg-purple-500/15 text-purple-400 border-purple-500/30',
   ADMIN:     'bg-amber-500/15 text-amber-400 border-amber-500/30',
 };
+const userActionClass =
+  'flex items-center gap-1.5 px-3 py-1.5 bg-surface2 text-primary hover:bg-surface border border-theme rounded-lg text-xs font-medium transition-colors';
 
 const UserManagement = () => {
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,7 @@ const UserManagement = () => {
   };
 
   const filteredUsers = users.filter(user => {
+    if (!user.verified) return false;
     const matchesSearch = user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole   = roleFilter ? user.role === roleFilter : true;
@@ -61,14 +64,14 @@ const UserManagement = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-primary">User Management</h1>
+        <h2 className="text-2xl font-bold text-primary">User Management</h2>
         <p className="text-muted mt-1">Manage user accounts. Donors and recipients are auto-verified. Pharmacies require document verification.</p>
       </div>
 
       <div className="bg-surface rounded-xl shadow-sm border border-theme overflow-hidden">
         {/* Toolbar */}
-        <div className="p-4 border-b border-theme flex flex-col sm:flex-row gap-3 bg-surface2/30">
-          <div className="flex-1 max-w-md">
+        <div className="px-0 py-4 border-b border-theme flex flex-col sm:flex-row gap-3 bg-surface2/30">
+          <div className="flex-1 max-w-md w-full">
             <SearchBar
               value={searchTerm}
               onChange={(v) => { setSearchTerm(v); setCurrentPage(1); }}
@@ -79,7 +82,7 @@ const UserManagement = () => {
             <select
               value={roleFilter}
               onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-              className="block w-full py-2 px-3 border border-theme rounded-lg text-sm bg-surface2 text-primary focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full h-[38px] py-2 px-3 border border-theme rounded-lg text-sm bg-surface2 text-primary focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Roles</option>
               <option value="DONOR">Donor</option>
@@ -130,7 +133,7 @@ const UserManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {u.isVerified ? (
+                      {u.verified ? (
                         <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-medium">
                           <CheckCircle className="h-4 w-4" /> Active
                         </span>
@@ -139,20 +142,20 @@ const UserManagement = () => {
                           <XCircle className="h-4 w-4" /> Suspended
                         </span>
                       )}
+                      {u.role === 'PHARMACY' && (
+                        <span className="block text-xs text-muted mt-1">Managed via verifications</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-subtle">
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      {u.role !== 'ADMIN' && (
+                      {u.role !== 'ADMIN' && u.role !== 'PHARMACY' && (
                         <div className="flex gap-2">
-                          {u.role === 'PHARMACY' ? (
-                            /* Pharmacies are managed via Pharmacy Verifications page */
-                            <span className="text-xs text-muted italic">Via Verifications</span>
-                          ) : u.isVerified ? (
+                          {u.verified ? (
                             <button
                               onClick={() => handleStatusChange(u.id, false)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 rounded border border-red-500/30 text-xs font-medium transition-colors"
+                              className={userActionClass}
                             >
                               <Ban className="h-3 w-3" />
                               Suspend
@@ -160,7 +163,7 @@ const UserManagement = () => {
                           ) : (
                             <button
                               onClick={() => handleStatusChange(u.id, true)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded border border-emerald-500/30 text-xs font-medium transition-colors"
+                              className={userActionClass}
                             >
                               <UserCheck className="h-3 w-3" />
                               Activate

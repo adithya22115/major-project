@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/common/Navbar';
-import { LogIn, ShieldCheck, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
+import { LogIn, ShieldCheck, Building2, Stethoscope, Loader2, Eye, EyeOff } from 'lucide-react';
 
 const LoginPage = ({ staffOnly = false }) => {
   const [activeTab, setActiveTab] = useState(staffOnly ? 'doctor' : 'admin');
@@ -26,6 +26,9 @@ const LoginPage = ({ staffOnly = false }) => {
       switch (user.role) {
         case 'ADMIN': redirectPath = '/admin/dashboard'; break;
         case 'PHARMACY': redirectPath = user.verified ? '/pharmacy/dashboard' : '/pharmacy/verification'; break;
+        case 'DOCTOR': redirectPath = user.verified ? '/doctor/dashboard' : '/doctor/verification'; break;
+        case 'DONOR': redirectPath = '/donor/dashboard'; break;
+        case 'RECIPIENT': redirectPath = '/recipient/dashboard'; break;
         default: redirectPath = '/';
       }
     }
@@ -36,6 +39,10 @@ const LoginPage = ({ staffOnly = false }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const isAdmin = activeTab === 'admin';
+  const isDoctor = activeTab === 'doctor';
+  const isPharmacy = activeTab === 'pharmacy';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -43,24 +50,29 @@ const LoginPage = ({ staffOnly = false }) => {
 
     try {
       const result = await login(formData.email, formData.password, rememberMe);
-      if (staffOnly && !['DOCTOR', 'PHARMACY', 'ADMIN'].includes(result?.user?.role)) {
+      const userRole = result?.user?.role;
+      if (staffOnly && !['DOCTOR', 'PHARMACY', 'ADMIN'].includes(userRole)) {
         logout();
         throw new Error('Staff Login is only for doctors, pharmacists, and administrators.');
       }
-      if (!staffOnly && isDoctor && result?.user?.role !== 'DOCTOR') {
+      if (isAdmin && userRole !== 'ADMIN') {
         logout();
-        throw new Error('This login tab is for doctor accounts only.');
+        throw new Error('This login tab is for administrator accounts only.');
+      }
+      if (isDoctor && userRole !== 'DOCTOR') {
+        logout();
+        throw new Error('This login tab is for doctor accounts only. Please use Pharmacist or Admin tab.');
+      }
+      if (isPharmacy && userRole !== 'PHARMACY') {
+        logout();
+        throw new Error('This login tab is for pharmacy accounts only. Please use Doctor or Admin tab.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      setError(err.response?.data?.message || err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
-
-  const isAdmin = activeTab === 'admin';
-  const isDoctor = activeTab === 'doctor';
-  const isStaff = activeTab === 'pharmacy' || isDoctor;
 
   return (
     <div className="min-h-screen bg-page flex flex-col font-sans">
@@ -73,13 +85,18 @@ const LoginPage = ({ staffOnly = false }) => {
             <div className={`px-6 py-8 text-center transition-colors duration-300 ${
               isAdmin
                 ? 'bg-gradient-to-r from-slate-700 to-slate-800'
+                : isDoctor
+                ? 'bg-gradient-to-r from-indigo-700 to-purple-800'
                 : 'bg-gradient-to-r from-emerald-700 to-teal-800'
             }`}>
               <div className="mx-auto bg-white/20 h-16 w-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm border border-white/30">
-                {isAdmin
-                  ? <ShieldCheck className="h-8 w-8 text-white" />
-                  : <Building2 className="h-8 w-8 text-white" />
-                }
+                {isAdmin ? (
+                  <ShieldCheck className="h-8 w-8 text-white" />
+                ) : isDoctor ? (
+                  <Stethoscope className="h-8 w-8 text-white" />
+                ) : (
+                  <Building2 className="h-8 w-8 text-white" />
+                )}
               </div>
               <h2 className="text-3xl font-extrabold text-white tracking-tight">
                 {isAdmin ? 'Admin Portal' : isDoctor ? 'Doctor Portal' : 'Pharmacist Portal'}
@@ -91,36 +108,43 @@ const LoginPage = ({ staffOnly = false }) => {
 
             {/* Tab Switcher */}
             <div className="flex border-b border-theme">
-              {!staffOnly && <button
-                onClick={() => { setActiveTab('admin'); setError(''); setFormData({ email: '', password: '' }); }}
-                className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
-                  isAdmin
-                    ? 'text-slate-400 border-b-2 border-slate-400 bg-surface2/30'
-                    : 'text-muted hover:text-primary'
-                }`}
-              >
-                <ShieldCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-                Admin Login
-              </button>}
+              {!staffOnly && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('admin'); setError(''); setFormData({ email: '', password: '' }); }}
+                  className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
+                    isAdmin
+                      ? 'text-slate-300 border-b-2 border-slate-400 bg-surface2/40'
+                      : 'text-muted hover:text-primary'
+                  }`}
+                >
+                  <ShieldCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+                  Admin
+                </button>
+              )}
               <button
+                type="button"
                 onClick={() => { setActiveTab('pharmacy'); setError(''); setFormData({ email: '', password: '' }); }}
                 className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
-                  !isAdmin
-                    ? 'text-emerald-400 border-b-2 border-emerald-400 bg-surface2/30'
+                  isPharmacy
+                    ? 'text-emerald-400 border-b-2 border-emerald-400 bg-surface2/40'
                     : 'text-muted hover:text-primary'
                 }`}
               >
                 <Building2 className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-                Pharmacist Login
+                Pharmacist
               </button>
               <button
+                type="button"
                 onClick={() => { setActiveTab('doctor'); setError(''); setFormData({ email: '', password: '' }); }}
                 className={`flex-1 py-3 text-sm font-semibold text-center transition-colors ${
-                  isDoctor ? 'text-indigo-400 border-b-2 border-indigo-400 bg-surface2/30' : 'text-muted hover:text-primary'
+                  isDoctor
+                    ? 'text-indigo-400 border-b-2 border-indigo-400 bg-surface2/40'
+                    : 'text-muted hover:text-primary'
                 }`}
               >
-                <ShieldCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-                Doctor Login
+                <Stethoscope className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+                Doctor
               </button>
             </div>
 
@@ -214,7 +238,7 @@ const LoginPage = ({ staffOnly = false }) => {
                 <p className="text-sm text-muted">
                   {isDoctor ? 'New Doctor?' : 'New Pharmacist?'}{' '}
                   <Link
-                    to={isDoctor ? '/doctor-register' : '/register'}
+                    to={isDoctor ? '/doctor-register' : '/pharmacy-register'}
                     className={`font-semibold ${isDoctor ? 'text-indigo-500 hover:text-indigo-400' : 'text-emerald-500 hover:text-emerald-400'}`}
                   >
                     {isDoctor ? 'Register as a doctor' : 'Register your pharmacy'}

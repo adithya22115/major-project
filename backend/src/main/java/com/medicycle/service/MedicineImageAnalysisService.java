@@ -29,10 +29,14 @@ import java.util.Locale;
 @Slf4j
 public class MedicineImageAnalysisService {
     private static final String PROMPT = """
-            Read the medicine packaging in the supplied image. Return ONLY valid JSON (no markdown)
+            Follow this decision order: first determine whether medicine packaging is visible.
+            If packaging is not available, set packagingAvailable=false and do not guess any text.
+            If packaging is visible, read the medicine packaging and expiry date. Return ONLY valid JSON (no markdown)
             with exactly these keys: medicineName (string or null), dosage (string or null),
+            batchNumber (string or null),
             expiryDate (YYYY-MM-DD string or null), quantity (positive integer or null),
-            confidence (number from 0 to 1). Do not guess values that are not legible.
+            confidence (number from 0 to 1), packagingAvailable (boolean).
+            Do not guess values that are not legible.
             """;
 
     private final WebClient webClient;
@@ -87,7 +91,7 @@ public class MedicineImageAnalysisService {
                 response = fallback(suppliedName, suppliedDosage, warnings);
             }
         }
-        return addComparisons(response, suppliedName, suppliedDosage);
+        return applySafetyDecision(addComparisons(response, suppliedName, suppliedDosage));
     }
 
     private String callVision(MultipartFile image) throws Exception {
@@ -120,20 +124,42 @@ public class MedicineImageAnalysisService {
         String expiry = validDate(json.path("expiryDate").asText(null));
         Integer quantity = validQuantity(json.path("quantity").asInt(0));
         Double confidence = validConfidence(json.path("confidence").asDouble(-1));
+        boolean packagingAvailable = json.path("packagingAvailable").asBoolean(true);
         List<String> fields = new ArrayList<>();
         if (json.path("medicineName").asText("").isBlank()) fields.add("medicineName");
         if (json.path("dosage").asText("").isBlank()) fields.add("dosage");
         if (expiry == null) fields.add("expiryDate");
         if (quantity == null) fields.add("quantity");
         return ImageVerificationResponse.builder().medicineName(clean(json.path("medicineName").asText(null)))
+                .batchNumber(clean(json.path("batchNumber").asText(null)))
                 .dosage(clean(json.path("dosage").asText(null))).expiryDate(expiry).quantity(quantity)
-                .confidence(confidence).analysisAvailable(true).warningFields(fields).warnings(new ArrayList<>()).build();
+                .confidence(confidence).analysisAvailable(true).packagingAvailable(packagingAvailable)
+                .warningFields(fields).warnings(new ArrayList<>()).build();
     }
 
     private ImageVerificationResponse fallback(String name, String dosage, List<String> warnings) {
         return ImageVerificationResponse.builder().medicineName(name).dosage(dosage).analysisAvailable(false)
+                .packagingAvailable(false).decision("MANUAL_VERIFICATION")
                 .confidence(null).warningFields(List.of("medicineName", "dosage", "expiryDate", "quantity"))
                 .warnings(warnings).build();
+    }
+
+    private ImageVerificationResponse applySafetyDecision(ImageVerificationResponse response) {
+        if (!response.isPackagingAvailable()) {
+            response.setDecision("MANUAL_VERIFICATION");
+            response.getWarnings().add("Packaging is unavailable or not visible. Manual verification is required.");
+            return response;
+        }
+        if (response.getExpiryDate() == null) {
+            response.setDecision("MANUAL_VERIFICATION");
+            response.getWarnings().add("Expiry date could not be read. Manual verification is required.");
+            return response;
+        }
+        boolean expired = LocalDate.parse(response.getExpiryDate()).isBefore(LocalDate.now());
+        response.setExpiryExpired(expired);
+        response.setDecision(expired ? "REJECT" : "CONTINUE");
+        if (expired) response.getWarnings().add("The medicine is expired and must be rejected.");
+        return response;
     }
 
     private ImageVerificationResponse addComparisons(ImageVerificationResponse response, String name, String dosage) {

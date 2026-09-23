@@ -16,6 +16,12 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import com.medicycle.dto.response.PagedResponse;
+import com.medicycle.dto.request.DonationQrRequest;
+import com.medicycle.dto.request.QrScanRequest;
+import com.medicycle.dto.response.DonationQrResponse;
+import com.medicycle.dto.response.QrScanResponse;
+import com.medicycle.service.DonationQrService;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -28,6 +34,7 @@ public class DonationController {
 
     private final DonationService donationService;
     private final FileStorageService fileStorageService;
+    private final DonationQrService donationQrService;
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<DonationResponse> createDonation(
@@ -120,6 +127,21 @@ public class DonationController {
     @GetMapping("/{id}")
     public ResponseEntity<DonationResponse> getDonation(@PathVariable Long id) {
         return ResponseEntity.ok(donationService.getDonationById(id));
+    }
+
+    @PostMapping("/{id}/qr")
+    public ResponseEntity<DonationQrResponse> createQr(
+            @PathVariable Long id,
+            @Valid @RequestBody DonationQrRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(donationQrService.createQr(id, request, principal.getId()));
+    }
+
+    @PostMapping("/scan")
+    public ResponseEntity<QrScanResponse> scanQr(
+            @Valid @RequestBody QrScanRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(donationQrService.validateAndDispense(request, principal.getId()));
     }
 
     @GetMapping("/nearest")
