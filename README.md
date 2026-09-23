@@ -1,341 +1,399 @@
-run dev# MediCycle - Smart Medicine Donation & Redistribution Platform
+# MediCycle
 
-A full-stack web application designed to reduce medicine waste by enabling users to donate unused, unexpired medicines. Every donated medicine is verified by an authorized pharmacy or NGO before becoming available in a pooled inventory for eligible patients to request.
+**MediCycle** is a full-stack medicine donation and redistribution platform. It helps donors submit safe, unused medicines; enables authorized pharmacists to verify and distribute them; and gives eligible recipients a transparent way to request available stock.
 
-## 📋 Table of Contents
-- [Overview](#overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
+> **Project status:** Educational prototype / capstone project. Production use requires applicable pharmaceutical, privacy, healthcare, and data-protection approvals.
+
+## Contents
+
+- [What the platform does](#what-the-platform-does)
+- [Roles and workflows](#roles-and-workflows)
+- [Key capabilities](#key-capabilities)
 - [Architecture](#architecture)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Running the Application](#running-the-application)
-- [API Documentation](#api-documentation)
-- [Project Structure](#project-structure)
-- [Environment Configuration](#environment-configuration)
+- [Technology stack](#technology-stack)
+- [Repository layout](#repository-layout)
+- [Prerequisites](#prerequisites)
+- [Local development](#local-development)
+- [Configuration](#configuration)
+- [API documentation](#api-documentation)
+- [Production deployment](#production-deployment)
+- [Testing](#testing)
+- [Security and data handling](#security-and-data-handling)
+- [Documentation](#documentation)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 - [License](#license)
 
-## Overview
+## What the platform does
 
-MediCycle addresses the critical issue of medicine waste by creating a secure, transparent platform for medicine donation and redistribution. The system ensures that donated medicines are properly verified before being made available to patients in need, promoting healthcare equity and reducing environmental waste from improperly disposed medications.
+MediCycle connects medicine donors, recipients, pharmacists, doctors, and administrators in a controlled workflow:
 
-## Features
+1. A donor submits medicine details, expiry information, quantity, and supporting images.
+2. A pharmacist reviews the donation and either approves or rejects it.
+3. Approved donations become available in the pooled inventory.
+4. A recipient searches available medicines and submits a request, including prescription documentation where required.
+5. A pharmacist approves an eligible request and generates a signed, descriptive QR artifact.
+6. The QR code is scanned at dispensing time; the backend validates the token, request, medicine identity, expiry, and remaining quantity before completing the distribution.
 
-### User Roles
-- **Donor (Patient)**: Register, donate medicines, upload details/images, view donation status and history
-- **Recipient (Patient)**: Search medicines, request medicines, upload prescriptions when required, track requests
-- **Pharmacy/NGO**: Verify donations, manage pooled inventory, approve recipient requests, distribute medicines
-- **Admin**: Manage users, medicines, reports, verification records, and platform settings
+The platform also includes doctor consultation requests, uploaded-document review for administrators, medicine-image verification, health-assistant support, notifications, reporting, and operational cleanup jobs.
 
-### Core Functionality
-- Secure user authentication with JWT
-- Medicine donation with image upload
-- Prescription verification for restricted medications
-- Pharmacist/NGO verification workflow
-- Pooled inventory management
-- Medicine request and fulfillment system
-- Real-time notifications
-- Role-based dashboards
-- Audit trail for all activities
-- Responsive design for mobile and desktop
+## Roles and workflows
 
-## Technology Stack
+| Role | Main responsibilities |
+| --- | --- |
+| **Donor** | Register, submit medicine donations, upload supporting images, track verification status, and view donation history |
+| **Recipient** | Browse available medicines, request quantities, upload prescriptions when needed, track request status, and book doctor consultations |
+| **Pharmacist** | Review donations and prescriptions, manage inventory, approve requests, generate QR codes, scan QR codes, and complete dispensing |
+| **Doctor** | Review consultation requests, confirm appointments, and manage consultation workflow |
+| **Administrator** | Manage users, review pharmacist/doctor documents, monitor reports, inspect activity, and control platform operations |
+
+## Key capabilities
+
+- JWT authentication with refresh-token support and role-based access control
+- Configurable CORS origins and externalized production configuration
+- Medicine donation and prescription uploads with server-side validation
+- Pharmacist verification workflow for donations and recipient requests
+- Medicine inventory and distribution tracking
+- QR generation and dispensing validation
+- Automatic QR SVG download using the persisted filename format:
+  `medicine-name-YYYY-MM-DD.svg`
+- Medicine-image analysis pipeline with structured extraction, confidence, and mismatch warnings
+- OpenAI-compatible LLM integration with a safe fallback when an external provider is unavailable
+- Doctor appointment and consultation workflow
+- Admin review of uploaded doctor and pharmacist verification documents
+- Smart matching and administrative reporting features
+- Scheduled cleanup of expired refresh tokens and JWT blacklist entries
+- Responsive React interface with accessible labels, role-specific navigation, and theme support
+- Docker Compose deployment with PostgreSQL, Spring Boot, and Nginx
+
+## Architecture
+
+```text
+                         HTTPS
+                           |
+                 React + Vite frontend
+                    (Nginx in production)
+                           |
+                    REST / JSON / multipart
+                           |
+                 Spring Boot backend API
+                 /       |        \
+              Security  Services  OpenAPI
+                           |
+                    Spring Data JPA
+                           |
+             PostgreSQL (production) / H2 (tests)
+```
+
+Uploaded documents and medicine images are stored in the configured upload directory. In the Docker deployment, uploads and PostgreSQL data are backed by named volumes.
+
+## Technology stack
 
 ### Frontend
-- **Framework**: React 19 with Vite
-- **Styling**: Tailwind CSS
-- **State Management**: React Context API
-- **Routing**: React Router DOM
-- **HTTP Client**: Axios
-- **Icons**: Lucide React
-- **Build Tool**: Vite
+
+- React 19
+- Vite
+- React Router
+- Axios
+- Tailwind CSS
+- Lucide React
+- `qrcode.react`
+- `html5-qrcode`
 
 ### Backend
-- **Framework**: Spring Boot 3
-- **ORM**: Spring Data JPA with Hibernate
-- **Security**: Spring Security with JWT
-- **Validation**: Jakarta Validation
-- **Documentation**: SpringDoc OpenAPI (Swagger)
-- **Logging**: SLF4J with Logback
-- **Build Tool**: Maven
 
-### Database
-- **Development**: H2 in-memory database
-- **Production**: PostgreSQL
-- **Connection Pool**: HikariCP
+- Java 21
+- Spring Boot 3.5
+- Spring MVC and WebFlux
+- Spring Data JPA / Hibernate
+- Spring Security
+- JJWT
+- Jakarta Validation
+- SpringDoc OpenAPI
+- Spring Mail
+- Maven Wrapper
 
-### Additional Tools
-- **File Upload**: Local storage (Cloudinary integration possible)
-- **Testing**: JUnit 5, Mockito
-- **Version Control**: Git
+### Data and operations
 
-## System Architecture
+- PostgreSQL 16 for production
+- H2 for automated tests
+- Docker Compose
+- Nginx
+- JUnit 5, Mockito, and Spring Security Test
 
-MediCycle follows a classic three-tier architecture:
+## Repository layout
 
+```text
+.
+├── backend/
+│   ├── src/main/java/com/medicycle/
+│   │   ├── config/          # CORS, security, scheduling, application config
+│   │   ├── controller/      # REST endpoints
+│   │   ├── dto/             # Request and response contracts
+│   │   ├── entity/          # JPA entities
+│   │   ├── repository/      # Spring Data repositories
+│   │   ├── security/        # JWT filters and authentication helpers
+│   │   └── service/         # Domain and integration logic
+│   ├── src/main/resources/  # Safe templates and runtime resources
+│   ├── src/test/             # Backend tests
+│   ├── Dockerfile
+│   ├── mvnw / mvnw.cmd
+│   └── pom.xml
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # Shared UI and layout components
+│   │   ├── context/         # Authentication and application state
+│   │   ├── pages/           # Role-specific pages
+│   │   ├── services/         # Axios API client and service calls
+│   │   └── App.jsx           # Route tree and role guards
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+├── docs/
+│   ├── DEPLOYMENT.md
+│   ├── ai-image-verification.md
+│   ├── qr-donation-workflow.md
+│   ├── demo-walkthrough.md
+│   └── MediCycle_End_to_End_Project_Report_Detailed.docx
+├── docker-compose.yml
+├── .env.production.example
+└── .gitignore
 ```
-Frontend (React/Vite)  <-- HTTPS REST APIs -->  Backend (Spring Boot)  -->  Database (PostgreSQL/H2)
-```
 
-### Layers
-1. **Presentation Layer**: React components handling UI and user interactions
-2. **API Layer**: RESTful controllers handling HTTP requests/responses
-3. **Service Layer**: Business logic implementation
-4. **Persistence Layer**: JPA repositories handling database operations
-5. **Database**: Relational database storing all application data
+## Prerequisites
 
-## Getting Started
+For local development:
 
-### Prerequisites
-- Java JDK 21 or higher
-- Node.js 18+ and npm
+- Java Development Kit 21
+- Node.js 18 or newer and npm
 - Git
-- (For production) PostgreSQL database
+- PostgreSQL, or use the H2 test/development profile where applicable
 
-### Installation
+For Docker deployment:
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd majorProject
-   ```
+- Docker Engine
+- Docker Compose plugin
+- A Linux VPS or equivalent host
+- A domain name and HTTPS termination strategy
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   # No additional installation needed - Maven Wrapper included
-   ```
+## Local development
 
-3. **Frontend Setup**
-   ```bash
-   cd frontend
-   npm install
-   ```
+### 1. Clone the repository
 
-### Running the Application
-
-#### Option 1: Development Mode (Recommended for development)
-
-1. **Start the Backend**
-   ```bash
-   cd backend
-   ./mvnw spring-boot:run
-   ```
-   The backend will start on port 8080 (or 8081 if 8080 is in use)
-
-2. **Start the Frontend** (in a new terminal)
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-   The frontend will be available at http://localhost:5173 (or 5174/5175 if port in use)
-
-#### Option 2: Production Build
-
-1. **Build the Backend**
-   ```bash
-   cd backend
-   ./mvnw clean package
-   ```
-
-2. **Build the Frontend**
-   ```bash
-   cd frontend
-   npm run build
-   ```
-
-3. **Run the Application**
-   - Deploy the backend JAR to your Java runtime
-   - Serve the frontend build files from a static web server
-   - Configure CORS appropriately if frontend and backend are on different domains
-
-### Accessing the Application
-
-- **Frontend UI**: http://localhost:5173 (or alternative port if displayed in terminal)
-- **Backend API**: http://localhost:8080/api (or 8081)
-- **API Documentation (Swagger UI)**: http://localhost:8080/swagger-ui.html
-- **Database Console (H2)**: http://localhost:8080/h2-console
-  - JDBC URL: `jdbc:h2:mem:medicycle;DB_CLOSE_DELAY=-1;MODE=PostgreSQL`
-  - Username: `sa`
-  - Password: (leave blank)
-
-## API Documentation
-
-When the backend is running, you can access interactive API documentation through:
-
-- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
-- **OpenAPI JSON**: `http://localhost:8080/v3/api-docs`
-
-The API documentation provides detailed information about:
-- All available endpoints
-- Request/response formats
-- Authentication requirements
-- Example payloads
-- Response codes
-
-## Project Structure
-
-### Backend Structure
-```
-backend/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/medicycle/
-│   │   │       ├── config/           # Configuration classes
-│   │   │       ├── controller/       # REST controllers
-│   │   │       ├── dto/              # Data Transfer Objects
-│   │   │       │   ├── request/      # Request DTOs
-│   │   │       │   └── response/     # Response DTOs
-│   │   │       ├── entity/           # JPA entities
-│   │   │       ├── enums/            # Enumeration classes
-│   │   │       ├── exception/        # Custom exceptions
-│   │   │       ├── repository/       # Spring Data repositories
-│   │   │       ├── security/         # Security configuration
-│   │   │       ├── service/          # Business logic services
-│   │   │       └── MediCycleApplication.java  # Main application class
-│   │   └── resources/
-│   │       ├── application.properties  # Configuration
-│   │       └── data.sql              # Optional initial data
-│   └── test/                     # Test classes
-├── pom.xml                       # Maven configuration
-└── HELP.md                       # Getting started guide
+```bash
+git clone https://github.com/adithya22115/major-project.git
+cd major-project
 ```
 
-### Frontend Structure
-```
-frontend/
-├── src/
-│   ├── assets/           # Static assets (images, icons)
-│   ├── components/       # Reusable UI components
-│   │   ├── dashboard/    # Dashboard-specific components
-│   │   └── layout/       # Layout components (header, footer, sidebar)
-│   ├── context/          # React Context providers
-│   ├── pages/            # Page components
-│   │   ├── auth/         # Authentication pages (login, register)
-│   │   └── ...           # Other page components
-│   ├── services/         # API service functions
-│   ├── hooks/            # Custom React hooks
-│   ├── utils/            # Utility functions
-│   ├── App.jsx           # Main application component
-│   └── main.jsx          # Entry point
-├── public/               # Static public files
-├── index.html            # HTML template
-├── package.json          # Dependencies and scripts
-└── vite.config.js        # Vite configuration
+### 2. Configure the backend
+
+Copy the safe configuration template if present:
+
+```bash
+cp backend/src/main/resources/application.properties.example \
+   backend/src/main/resources/application.properties
 ```
 
-## Environment Configuration
+On Windows PowerShell:
 
-### Backend Configuration
-Edit `backend/src/main/resources/application.properties`:
-
-```properties
-# Server Configuration
-server.port=8080
-
-# Database Configuration (H2 for development)
-spring.datasource.url=jdbc:h2:mem:medicycle;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-spring.datasource.driver-class-name=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-
-# Hibernate Settings
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=false
-spring.jpa.properties.hibernate.format_sql=true
-
-# JWT Configuration
-jwt.secret=YourSuperSecretKeyChangeInProductionMakeItLongEnough
-jwt.expiration=86400000  # 24 hours in milliseconds
-
-# Seed Admin Account (optional; created by DataInitializer on first run)
-app.admin.email=${ADMIN_EMAIL:}
-app.admin.password=${ADMIN_PASSWORD:}
-app.admin.name=MediCycle Admin
-app.admin.phone=0000000000
-
-# CORS (comma-separated allowed origins, supports wildcards)
-app.cors.allowed-origins=http://localhost:*,http://127.0.0.1:*
-
-# H2 console (dev only — keep false outside local development)
-app.security.h2-console-enabled=false
-
-# File Upload Configuration
-file.upload-dir=uploads
-file.max-size=5242880  # max upload size in bytes (default 5MB)
-spring.servlet.multipart.max-file-size=5MB
-spring.servlet.multipart.max-request-size=10MB
-
-# Token cleanup schedule (purges expired refresh tokens / JWT blacklist)
-app.cleanup.token-cron=0 0 3 * * *
-
-# SpringDoc Configuration
-springdoc.api-docs.path=/api-docs
-springdoc.swagger-ui.path=/swagger-ui.html
+```powershell
+Copy-Item backend\src\main\resources\application.properties.example `
+  backend\src\main\resources\application.properties
 ```
 
-### Frontend Configuration
-The frontend automatically detects the backend API URL based on the window location. For production deployments where frontend and backend are on different domains, you may need to configure the API base URL in `frontend/src/services/api.js`:
+Set local database, JWT, CORS, upload, mail, and optional LLM values in the local properties file. Do not commit local secrets or populated `.env` files.
 
-```javascript
-import axios from 'axios';
+### 3. Install frontend dependencies
 
-const api = axios.create({
-  baseURL: process.env.VITE_API_URL || 'http://localhost:8081/api',  // Adjust as needed
-  // ... rest of configuration
-});
+```bash
+cd frontend
+npm ci
+cd ..
 ```
+
+### 4. Start the backend
+
+Linux/macOS:
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+Windows:
+
+```powershell
+Set-Location backend
+.\mvnw.cmd spring-boot:run
+```
+
+The API normally starts on `http://localhost:8080`.
+
+### 5. Start the frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+The Vite development server normally starts on `http://localhost:5173`.
+
+## Configuration
+
+The committed `.env.production.example` documents the production variables. Create a private `.env` file from it for Docker deployment:
+
+```bash
+cp .env.production.example .env
+```
+
+Important values include:
+
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | PostgreSQL database credentials |
+| `JWT_SECRET` | Long random signing secret |
+| `JWT_EXPIRATION`, `JWT_REFRESH_EXPIRATION` | Access and refresh token lifetimes |
+| `APP_BASE_URL` | Public application URL |
+| `APP_CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Initial administrator account |
+| `SPRING_MAIL_*` | Optional email notification configuration |
+| `LLM_API_*` | Optional health-assistant provider |
+| `MEDICINE_ANALYSIS_API_*` | Optional medicine-image analysis provider |
+| `HTTP_PORT` | Host port for the Nginx frontend container |
+
+Keep the following out of Git:
+
+- Populated `.env` files
+- JWT, database, SMTP, and LLM secrets
+- Local `application.properties`
+- Uploaded documents and images
+- Logs, build output, `node_modules`, and Maven target files
+
+## API documentation
+
+With the backend running, open:
+
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/api-docs`
+
+All protected endpoints require a valid bearer access token unless the endpoint is explicitly public. The API is organized around authentication, donations, medicine requests, inventory, verification, appointments, notifications, files, administration, and health assistance.
+
+## Production deployment
+
+The repository includes a Docker Compose stack containing:
+
+- PostgreSQL 16
+- Spring Boot backend
+- Nginx-served React frontend
+- Persistent database and upload volumes
+
+Quick start:
+
+```bash
+cp .env.production.example .env
+# Edit .env and replace every placeholder.
+docker compose --env-file .env up -d --build
+docker compose ps
+docker compose logs -f backend
+```
+
+The frontend container exposes port `8080` by default and proxies:
+
+- `/api/` to the backend
+- `/uploads/` to the backend
+- all other routes to the React SPA
+
+Put Caddy, host-level Nginx, or a cloud load balancer in front of port `8080` for HTTPS. Complete VPS, firewall, backup, update, and restore instructions are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+Do not use `docker compose down -v` during routine maintenance; it deletes the database and upload volumes.
+
+## Testing
+
+### Backend tests
+
+Linux/macOS:
+
+```bash
+cd backend
+./mvnw test
+```
+
+Windows:
+
+```powershell
+Set-Location backend
+.\mvnw.cmd test
+```
+
+### Frontend checks
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+The completed project validation included backend automated tests, frontend production build validation, and browser walkthroughs for donor, recipient, pharmacist, doctor, and administrator workflows. The latest recorded backend run passed 137 tests with zero failures and zero errors.
+
+For a repeatable manual walkthrough, see [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md) and [`docs/phase2-walkthrough.md`](docs/phase2-walkthrough.md).
+
+## Security and data handling
+
+- Authorization is enforced in the backend; frontend role guards are not a security boundary.
+- Uploaded files must be treated as sensitive healthcare-related data.
+- Use HTTPS before accepting real user accounts or documents.
+- Use strong, rotated secrets and restrict production CORS to known origins.
+- Keep PostgreSQL private and expose only the application edge.
+- Review retention, deletion, access logging, and regulatory obligations before real deployment.
+- AI extraction is assistive only. Users and authorized staff must review extracted medicine fields before submission or dispensing.
+- QR validation is performed against current server-side state; a QR image alone does not authorize dispensing.
+
+## Documentation
+
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): VPS, Docker, HTTPS, backups, and operations
+- [`docs/ai-image-verification.md`](docs/ai-image-verification.md): medicine-image analysis pipeline
+- [`docs/qr-donation-workflow.md`](docs/qr-donation-workflow.md): QR generation and dispensing workflow
+- [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md): end-to-end demo walkthrough
+- [`docs/schema.txt`](docs/schema.txt): data model reference
+- [`docs/MediCycle_End_to_End_Project_Report_Detailed.docx`](docs/MediCycle_End_to_End_Project_Report_Detailed.docx): extended project report
 
 ## Troubleshooting
 
-### Common Issues
+### Port already in use
 
-1. **Port Already in Use**
-   - Backend will automatically try port 8081 if 8080 is occupied
-   - Frontend will try ports 5174, 5175, etc. if 5173 is occupied
-   - Check the terminal output for the actual ports being used
+Stop the process using port 8080 or 5173, or configure another port. Always use the actual port printed by Spring Boot or Vite.
 
-2. **Database Connection Issues**
-   - For H2: Ensure no other application is using the same in-memory database
-   - For PostgreSQL: Verify the database exists and credentials are correct
-   - Check application logs for specific connection error messages
+### CORS errors
 
-3. **CORS Errors**
-   - Backend is configured to allow CORS requests
-   - If issues persist, check `SecurityConfig.java` in the backend
-   - Ensure frontend and backend are running on allowed origins
+Check `APP_CORS_ALLOWED_ORIGINS` or the corresponding backend property. Include the complete frontend origin, including its scheme and port, and restart the backend after changing it.
 
-4. **Authentication Problems**
-   - Verify that the JWT token is being stored in localStorage after login
-   - Check that the token is being sent in the Authorization header
-   - Ensure the token hasn't expired (default 24 hours)
+### Authentication failures
 
-5. **File Upload Issues**
-   - Verify the `uploads/` directory exists in the backend working directory
-   - Check file permissions for the upload directory
-   - Ensure file types and sizes are within allowed limits
+Confirm that the login response contains a valid access token, that the browser sends it as a bearer token, and that the JWT secret is stable across backend restarts.
 
-### Logs and Debugging
+### Upload failures
 
-- **Backend Logs**: View console output where you started the backend with `./mvnw spring-boot:run`
-- **Frontend Errors**: Check browser developer console for JavaScript errors
-- **Network Requests**: Use browser dev tools Network tab to inspect API calls
-- **Database Inspection**: Use H2 Console at `http://localhost:8080/h2-console`
+Check the configured upload directory, filesystem permissions, request-size limits, and supported file types. In Docker, confirm the upload volume is mounted and has free space.
+
+### Database connection failures
+
+Check PostgreSQL availability and credentials, then inspect:
+
+```bash
+docker compose logs --tail=200 db backend
+```
+
+## Contributing
+
+1. Create a focused branch from `main`.
+2. Keep changes scoped to one feature or fix.
+3. Update directly related documentation.
+4. Run backend tests and frontend lint/build checks.
+5. Never commit secrets, generated uploads, logs, or build artifacts.
+6. Describe validation steps in the pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Created as a capstone project for medicine waste reduction
-- Built with modern full-stack technologies
-- Designed with healthcare accessibility and equity in mind
-- Inspired by real-world medicine donation programs
-
----
-
-**Note**: This is an educational prototype. Actual deployment would require compliance with applicable pharmaceutical regulations and approvals from relevant health authorities.
+No license file is currently included in the repository. Treat this project as **all rights reserved** unless a license is added by the project owner.
