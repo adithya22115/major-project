@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
@@ -116,6 +117,10 @@ public class HealthAssistantService {
     }
 
     private String callLlm(SymptomCheckRequest request) throws Exception {
+        if (isGeminiProvider()) {
+            return callGemini(request);
+        }
+
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", maxTokens);
@@ -158,6 +163,9 @@ public class HealthAssistantService {
     private SymptomCheckResponse parseLlmResponse(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
+            if (isGeminiProvider() || root.has("candidates")) {
+                return parseGeminiResponse(root);
+            }
             JsonNode choices = root.path("choices");
             if (!choices.isArray() || choices.isEmpty()) {
                 return buildErrorResponse("Unexpected response format from the AI service.");
@@ -188,6 +196,89 @@ public class HealthAssistantService {
             log.error("Error parsing LLM response: {}", responseBody, e);
             return buildErrorResponse("Error processing the AI response. Please try again.");
         }
+    }
+
+    private String callGemini(SymptomCheckRequest request) throws Exception {
+        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode systemInstruction = root.putObject("systemInstruction");
+        systemInstruction.putArray("parts")
+                .addObject()
+                .put("text", SYSTEM_PROMPT);
+
+        ArrayNode contents = root.putArray("contents");
+        for (SymptomCheckRequest.ChatMessage msg : recentHistory(request.getConversationHistory())) {
+            ObjectNode content = contents.addObject();
+            content.put("role", "assistant".equalsIgnoreCase(msg.getRole()) ? "model" : "user");
+            content.putArray("parts").addObject().put("text", msg.getContent());
+        }
+        contents.addObject()
+                .put("role", "user")
+                .putArray("parts")
+                .addObject()
+                .put("text", buildUserMessage(request));
+
+        ObjectNode generationConfig = root.putObject("generationConfig");
+        generationConfig.put("temperature", 0.5);
+        generationConfig.put("maxOutputTokens", maxTokens);
+
+        String endpoint = apiUrl;
+        if (!endpoint.contains(":generateContent")) {
+            endpoint = endpoint.replaceAll("/+$", "") + "/" + model + ":generateContent";
+        }
+        String requestUri = UriComponentsBuilder.fromUriString(endpoint)
+                .queryParam("key", apiKey)
+                .build()
+                .toUriString();
+
+        String responseBody = webClient.post()
+                .uri(requestUri)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(root))
+                .retrieve()
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .block();
+
+        if (responseBody == null || responseBody.isBlank()) {
+            throw new RuntimeException("Empty response from Gemini API");
+        }
+        return responseBody;
+    }
+
+    private SymptomCheckResponse parseGeminiResponse(JsonNode root) {
+        JsonNode candidates = root.path("candidates");
+        if (!candidates.isArray() || candidates.isEmpty()) {
+            return buildErrorResponse("Unexpected response format from the Gemini service.");
+        }
+
+        String content = candidates.get(0)
+                .path("content")
+                .path("parts")
+                .path(0)
+                .path("text")
+                .asText("");
+        if (content.isBlank()) {
+            return buildErrorResponse("Empty response from the Gemini service.");
+        }
+
+        List<String> conditions = extractConditions(content);
+        String severity = extractSeverity(content);
+        boolean seekDoctor = content.toUpperCase().contains("SEEK_DOCTOR: YES")
+                || "HIGH".equals(severity)
+                || content.toLowerCase().contains("see a doctor")
+                || content.toLowerCase().contains("seek medical")
+                || content.toLowerCase().contains("consult a doctor");
+
+        return SymptomCheckResponse.builder()
+                .aiResponse(cleanAiResponse(content))
+                .possibleConditions(conditions)
+                .severity(severity)
+                .seekDoctorAdvice(seekDoctor)
+                .build();
+    }
+
+    private boolean isGeminiProvider() {
+        return apiUrl != null && apiUrl.toLowerCase().contains("generativelanguage.googleapis.com");
     }
 
     private List<String> extractConditions(String text) {
@@ -230,25 +321,77 @@ public class HealthAssistantService {
 
     private SymptomCheckResponse generateFallbackAnalysis(SymptomCheckRequest request) {
         List<SymptomCheckRequest.ChatMessage> history = recentHistory(request.getConversationHistory());
-        String msg = buildMemoryAwareMessage(request, history).toLowerCase();
+        String latestMessage = request.getMessage() == null ? "" : request.getMessage().toLowerCase();
+        String historyAwareMessage = buildMemoryAwareMessage(request, history).toLowerCase();
+        String msg = selectFallbackAnalysisMessage(latestMessage, historyAwareMessage);
+        boolean usingHistoryForFollowUp = !msg.equals(latestMessage);
 
         List<String> conditions = new ArrayList<>();
         String severity = "LOW";
         boolean seekDoctor = false;
         StringBuilder advice = new StringBuilder();
 
-        if (!history.isEmpty()) {
+        if (!history.isEmpty() && usingHistoryForFollowUp) {
             advice.append("Thanks for the update. I’m using what you shared earlier in this conversation together with your latest message.\n\n");
         } else {
-            advice.append("Hello! I have evaluated the symptoms you described:\n\n");
+            advice.append("Hello! I’m here to help with your symptoms.\n\n");
         }
 
-        if (msg.contains("chest pain") || msg.contains("breathing") || msg.contains("shortness of breath") || msg.contains("fainting") || msg.contains("seizure")) {
+        if (!containsMedicalKeywords(msg)) {
+            if (isGreetingOrSmallTalk(latestMessage)) {
+                advice.append("Please tell me what symptoms you are experiencing right now (for example fever, cough, headache, stomach pain), how long they have been present, and whether they are getting worse.\n\n");
+            } else {
+                advice.append("I need a little more detail to help you better. Please describe your main symptoms, when they started, and how severe they feel.\n\n");
+            }
+            advice.append("Reminder: This assistant provides educational information and is not a substitute for professional medical diagnosis.");
+            return SymptomCheckResponse.builder()
+                    .aiResponse(advice.toString())
+                    .possibleConditions(conditions)
+                    .severity(severity)
+                    .seekDoctorAdvice(seekDoctor)
+                    .build();
+        }
+
+        boolean hasEmergencySymptoms = msg.contains("chest pain")
+                || msg.contains("breathing")
+                || msg.contains("shortness of breath")
+                || msg.contains("fainting")
+                || msg.contains("seizure");
+        boolean hasFeverSymptoms = msg.contains("fever")
+                || msg.contains("temperature")
+                || msg.contains("chills");
+        boolean hasHeadacheSymptoms = msg.contains("headache")
+                || msg.contains("migraine")
+                || msg.contains("head pain");
+        boolean hasEyeStrainSymptoms = msg.contains("eyestrain")
+                || msg.contains("eye strain")
+                || msg.contains("eye pain")
+                || msg.contains("blurred vision");
+
+        if (hasEmergencySymptoms) {
             conditions.addAll(List.of("Severe Respiratory Distress", "Cardiac/Cardiovascular Event", "Emergency Acute Condition"));
             severity = "HIGH";
             seekDoctor = true;
             advice.append("⚠️ URGENT MEDICAL ATTENTION RECOMMENDED:\n");
             advice.append("Chest pain or severe difficulty breathing can indicate a serious medical emergency. Please visit an emergency care facility or call emergency medical service immediately.\n\n");
+        } else if (hasFeverSymptoms && (hasHeadacheSymptoms || hasEyeStrainSymptoms)) {
+            conditions.add("Viral Fever");
+            conditions.add("Influenza (Flu)");
+            if (hasHeadacheSymptoms) {
+                conditions.add("Tension Headache / Migraine");
+            }
+            if (hasEyeStrainSymptoms) {
+                conditions.add("Digital Eye Strain");
+            }
+            severity = "MEDIUM";
+            seekDoctor = msg.contains("high") || msg.contains("persistent") || msg.contains("severe");
+            advice.append("General Care Tips for the symptoms you described:\n");
+            advice.append("- Rest well, drink plenty of water, and monitor your temperature.\n");
+            advice.append("- For headache, rest in a quiet area and use a cool compress if helpful.\n");
+            if (hasEyeStrainSymptoms) {
+                advice.append("- Reduce screen time, use comfortable lighting, and follow the 20-20-20 eye-rest rule.\n");
+            }
+            advice.append("- Seek medical evaluation if fever lasts more than 3 days, becomes high, vision changes occur, or symptoms worsen.\n\n");
         } else if (msg.contains("fever") || msg.contains("temperature") || msg.contains("chills")) {
             conditions.addAll(List.of("Viral Fever", "Influenza (Flu)", "Acute Upper Respiratory Infection"));
             severity = "MEDIUM";
@@ -296,6 +439,98 @@ public class HealthAssistantService {
                 .severity(severity)
                 .seekDoctorAdvice(seekDoctor)
                 .build();
+    }
+
+    private String selectFallbackAnalysisMessage(String latestMessage, String historyAwareMessage) {
+        if (containsMedicalKeywords(latestMessage)) {
+            return latestMessage;
+        }
+        if ((looksLikeFollowUp(latestMessage) || isCareAdviceRequest(latestMessage))
+                && containsMedicalKeywords(historyAwareMessage)) {
+            return historyAwareMessage;
+        }
+        return latestMessage;
+    }
+
+    private boolean containsMedicalKeywords(String message) {
+        if (!StringUtils.hasText(message)) {
+            return false;
+        }
+        String msg = message.toLowerCase();
+        return msg.contains("pain")
+                || msg.contains("fever")
+                || msg.contains("temperature")
+                || msg.contains("chills")
+                || msg.contains("headache")
+                || msg.contains("migraine")
+                || msg.contains("cough")
+                || msg.contains("cold")
+                || msg.contains("throat")
+                || msg.contains("breath")
+                || msg.contains("chest")
+                || msg.contains("stomach")
+                || msg.contains("vomit")
+                || msg.contains("nausea")
+                || msg.contains("diarrhea")
+                || msg.contains("abdominal")
+                || msg.contains("faint")
+                || msg.contains("seizure")
+                || msg.contains("dizzy")
+                || msg.contains("fatigue")
+                || msg.contains("weak")
+                || msg.contains("eyestrain")
+                || msg.contains("eye strain")
+                || msg.contains("blurred vision");
+    }
+
+    private boolean looksLikeFollowUp(String message) {
+        if (!StringUtils.hasText(message)) {
+            return false;
+        }
+        String msg = message.toLowerCase();
+        return msg.contains("still")
+                || msg.contains("same")
+                || msg.contains("again")
+                || msg.contains("continues")
+                || msg.contains("continuing")
+                || msg.contains("not better")
+                || msg.contains("worse")
+                || msg.contains("happening");
+    }
+
+    private boolean isCareAdviceRequest(String message) {
+        if (!StringUtils.hasText(message)) {
+            return false;
+        }
+        String msg = message.toLowerCase();
+        return msg.contains("care tip")
+                || msg.contains("care advice")
+                || msg.contains("self care")
+                || msg.contains("what should i do")
+                || msg.contains("what can i do")
+                || msg.contains("how can i manage")
+                || msg.contains("how do i manage")
+                || msg.contains("help me with")
+                || msg.contains("advice for")
+                || msg.contains("tips for")
+                || msg.contains("treatment advice");
+    }
+
+    private boolean isGreetingOrSmallTalk(String message) {
+        if (!StringUtils.hasText(message)) {
+            return true;
+        }
+        String msg = message.trim().toLowerCase();
+        return msg.equals("hi")
+                || msg.equals("hello")
+                || msg.equals("hey")
+                || msg.equals("hii")
+                || msg.equals("good morning")
+                || msg.equals("good afternoon")
+                || msg.equals("good evening")
+                || msg.equals("how are you")
+                || msg.equals("what can you do")
+                || msg.equals("help");
     }
 
     private SymptomCheckResponse buildErrorResponse(String message) {

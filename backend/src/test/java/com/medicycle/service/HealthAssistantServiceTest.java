@@ -69,6 +69,72 @@ class HealthAssistantServiceTest {
     }
 
     @Test
+    void analyzeSymptoms_shouldPrioritizeLatestSymptomOverOldHistory() {
+        SymptomCheckRequest request = SymptomCheckRequest.builder()
+                .message("Now I have stomach pain and nausea")
+                .conversationHistory(List.of(
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("user")
+                                .content("I had fever yesterday")
+                                .build(),
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("assistant")
+                                .content("Keep monitoring your temperature.")
+                                .build()
+                ))
+                .build();
+
+        SymptomCheckResponse response = healthAssistantService.analyzeSymptoms(request);
+
+        assertEquals("MEDIUM", response.getSeverity());
+        assertTrue(response.getPossibleConditions().contains("Gastroenteritis"));
+        assertTrue(response.getAiResponse().contains("oral rehydration solution"));
+    }
+
+    @Test
+    void analyzeSymptoms_shouldUseEarlierSymptomsForCareAdviceRequest() {
+        SymptomCheckRequest request = SymptomCheckRequest.builder()
+                .message("These are all my symptoms, help me with care tips")
+                .conversationHistory(List.of(
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("user")
+                                .content("I have fever")
+                                .build(),
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("user")
+                                .content("Along with that headache")
+                                .build(),
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("user")
+                                .content("Eyestrain also")
+                                .build()
+                ))
+                .build();
+
+        SymptomCheckResponse response = healthAssistantService.analyzeSymptoms(request);
+
+        assertEquals("MEDIUM", response.getSeverity());
+        assertTrue(response.getPossibleConditions().contains("Viral Fever"));
+        assertTrue(response.getPossibleConditions().contains("Tension Headache / Migraine"));
+        assertTrue(response.getPossibleConditions().contains("Digital Eye Strain"));
+        assertTrue(response.getAiResponse().contains("20-20-20"));
+        assertFalse(response.getAiResponse().contains("I need a little more detail"));
+    }
+
+    @Test
+    void analyzeSymptoms_shouldAskForSymptomsOnGreetingMessage() {
+        SymptomCheckRequest request = SymptomCheckRequest.builder()
+                .message("hi")
+                .build();
+
+        SymptomCheckResponse response = healthAssistantService.analyzeSymptoms(request);
+
+        assertEquals("LOW", response.getSeverity());
+        assertTrue(response.getPossibleConditions().isEmpty());
+        assertTrue(response.getAiResponse().contains("Please tell me what symptoms"));
+    }
+
+    @Test
     void analyzeSymptoms_shouldReturnFallback_whenApiUnreachable() {
         // A non-blank key against an unroutable local port: connection refused -> fallback, no hang.
         HealthAssistantService unreachable = new HealthAssistantService(

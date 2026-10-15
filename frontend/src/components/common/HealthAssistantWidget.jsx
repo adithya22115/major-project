@@ -50,11 +50,11 @@ const HealthAssistantWidget = () => {
   const [consultSubmitted, setConsultSubmitted] = useState(false);
   const [consultError, setConsultError] = useState('');
   const [consultLoading, setConsultLoading] = useState(false);
+  const [memoryHydrated, setMemoryHydrated] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
-  const memoryLoadedRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -68,19 +68,19 @@ const HealthAssistantWidget = () => {
     } catch {
       sessionStorage.removeItem(ASSISTANT_MEMORY_KEY);
     } finally {
-      memoryLoadedRef.current = true;
+      setMemoryHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!memoryLoadedRef.current) return;
+    if (!memoryHydrated) return;
     sessionStorage.setItem(ASSISTANT_MEMORY_KEY, JSON.stringify({
       messages: messages.slice(-MAX_MEMORY_MESSAGES),
       conversationHistory: conversationHistory.slice(-MAX_MEMORY_MESSAGES),
       age,
       gender,
     }));
-  }, [messages, conversationHistory, age, gender]);
+  }, [memoryHydrated, messages, conversationHistory, age, gender]);
 
   // Screen resize listener for mobile responsiveness
   useEffect(() => {
@@ -131,16 +131,17 @@ const HealthAssistantWidget = () => {
     setLoading(true);
 
     try {
+      const historyForRequest = conversationHistory.slice(-MAX_MEMORY_MESSAGES);
       const response = await checkSymptoms(
         messageText,
-        conversationHistory.slice(-MAX_MEMORY_MESSAGES),
+        historyForRequest,
         age ? parseInt(age) : null,
         gender || null
       );
 
       const assistantMessage = {
         role: 'assistant',
-        content: response.aiResponse,
+        content: formatAssistantChatResponse(messageText, response.aiResponse, historyForRequest),
         conditions: response.possibleConditions,
         severity: response.severity,
         seekDoctor: response.seekDoctorAdvice,
@@ -168,6 +169,31 @@ const HealthAssistantWidget = () => {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
+  };
+
+  const formatAssistantChatResponse = (reportedMessage, aiResponse, history = []) => {
+    const normalizedMessage = reportedMessage.trim().toLowerCase();
+    const isGreeting = ['hi', 'hello', 'hey', 'hii', 'good morning', 'good afternoon', 'good evening']
+      .includes(normalizedMessage);
+    const earlierUserMessages = history
+      .filter(item => item?.role === 'user' && item.content?.trim())
+      .map(item => item.content.trim())
+      .filter((content, index, all) => all.indexOf(content) === index)
+      .slice(-3);
+
+    if ((isGreeting || !reportedMessage.trim()) && earlierUserMessages.length === 0) {
+      return aiResponse;
+    }
+
+    const earlierContext = earlierUserMessages.length > 0
+      ? `Earlier information considered:\n${earlierUserMessages.map(content => `- ${content}`).join('\n')}\n\n`
+      : '';
+
+    const currentSymptoms = isGreeting || !reportedMessage.trim()
+      ? ''
+      : `Symptoms you reported:\n- ${reportedMessage.trim()}\n\n`;
+
+    return `${earlierContext}${currentSymptoms}General care guidance:\n${aiResponse}`;
   };
 
   const handleKeyDown = (e) => {
