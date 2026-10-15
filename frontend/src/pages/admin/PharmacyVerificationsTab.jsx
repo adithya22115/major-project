@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import {
   getPendingPharmacyVerifications,
   getAllPharmacyVerificationsByStatus,
+  getPharmacyVerificationByUserId,
   approvePharmacyVerification,
   rejectPharmacyVerification
 } from '../../services/pharmacyVerificationService';
+import { getUsers, updateUserStatus } from '../../services/adminService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import {
   CheckCircle, XCircle, Clock, FileText, ExternalLink,
-  ChevronDown, ChevronUp, Shield, Image, FileIcon, ZoomIn, X, Building2
+  ChevronDown, ChevronUp, Shield, Image, FileIcon, ZoomIn, X, Building2,
+  Eye, Lock, AlertCircle
 } from 'lucide-react';
 
 const PharmacyVerificationsTab = () => {
@@ -21,14 +24,60 @@ const PharmacyVerificationsTab = () => {
   const [rejectRemarks, setRejectRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [viewedDocs, setViewedDocs] = useState({});
 
   const fetchVerifications = async (status) => {
     setLoading(true);
     try {
-      const data = status === 'PENDING'
+      let data = status === 'PENDING'
         ? await getPendingPharmacyVerifications()
         : await getAllPharmacyVerificationsByStatus(status);
-      setVerifications(data || []);
+      data = data ? [...data] : [];
+
+      // If pending tab, ensure any unverified pharmacy users are also included
+      if (status === 'PENDING') {
+        const allUsers = await getUsers().catch(() => []);
+        const unverifiedPharmacies = (allUsers || []).filter(u => !u.isVerified && u.role === 'PHARMACY');
+        const existingUserIds = new Set(data.map(d => d.userId));
+
+        for (const u of unverifiedPharmacies) {
+          if (!existingUserIds.has(u.id)) {
+            try {
+              const pv = await getPharmacyVerificationByUserId(u.id);
+              if (pv && pv.status === 'PENDING') {
+                data.push(pv);
+                existingUserIds.add(u.id);
+                continue;
+              }
+            } catch {
+              // No existing verification record
+            }
+
+            // Include pharmacy application record so it appears in Pharmacy Verifications
+            data.push({
+              id: `user-${u.id}`,
+              userId: u.id,
+              userName: u.name,
+              userEmail: u.email,
+              pharmacyName: u.name,
+              licenseNumber: 'Not provided',
+              pharmacyAddress: u.address || 'Address pending submission',
+              city: u.city,
+              state: u.state,
+              pincode: u.pincode,
+              contactPhone: u.phone,
+              contactEmail: u.email,
+              documentUrls: [],
+              status: 'PENDING',
+              submittedAt: u.createdAt,
+              isUserAccountOnly: true,
+            });
+            existingUserIds.add(u.id);
+          }
+        }
+      }
+
+      setVerifications(data);
     } catch (_err) {
       toast.error('Failed to load pharmacy verifications');
     } finally {
@@ -40,12 +89,44 @@ const PharmacyVerificationsTab = () => {
     fetchVerifications(activeTab);
   }, [activeTab]);
 
-  const handleApprove = async (id) => {
-    setActionLoading(id);
+  const markDocViewed = (vId, url) => {
+    setViewedDocs(prev => {
+      const current = new Set(prev[vId] || []);
+      current.add(url);
+      return { ...prev, [vId]: current };
+    });
+  };
+
+  const areAllDocsViewed = (v) => {
+    if (!v.documentUrls || v.documentUrls.length === 0) return false;
+    const viewed = viewedDocs[v.id] || new Set();
+    return v.documentUrls.every(url => viewed.has(url));
+  };
+
+  const getViewedCount = (v) => {
+    if (!v.documentUrls || v.documentUrls.length === 0) return 0;
+    const viewed = viewedDocs[v.id] || new Set();
+    return v.documentUrls.filter(url => viewed.has(url)).length;
+  };
+
+  const handleApprove = async (verification) => {
+    if (!verification.documentUrls || verification.documentUrls.length === 0) {
+      toast.error('Cannot approve pharmacy: No verification documents uploaded.');
+      return;
+    }
+    if (!areAllDocsViewed(verification)) {
+      toast.error('Please view and inspect all uploaded documents before approving.');
+      return;
+    }
+    setActionLoading(verification.id);
     try {
-      await approvePharmacyVerification(id, 'Verified by admin');
+      if (verification.isUserAccountOnly) {
+        await updateUserStatus(verification.userId, { isVerified: true });
+      } else {
+        await approvePharmacyVerification(verification.id, 'Verified by admin after reviewing uploaded documents');
+      }
       toast.success('Pharmacy verified and approved successfully');
-      setVerifications(prev => prev.filter(v => v.id !== id));
+      setVerifications(prev => prev.filter(v => v.id !== verification.id));
     } catch (_err) {
       toast.error('Failed to approve pharmacy');
     } finally {
@@ -54,13 +135,15 @@ const PharmacyVerificationsTab = () => {
   };
 
   const handleReject = async () => {
-    if (!rejectRemarks.trim()) {
-      toast.error('Please provide a reason for rejection');
-      return;
-    }
+    const finalRemarks = rejectRemarks.trim() || 'Pharmacy verification application rejected by administrator.';
     setActionLoading(rejectModal);
     try {
-      await rejectPharmacyVerification(rejectModal, rejectRemarks);
+      const item = verifications.find(v => v.id === rejectModal);
+      if (item?.isUserAccountOnly) {
+        await updateUserStatus(item.userId, { isVerified: false });
+      } else {
+        await rejectPharmacyVerification(rejectModal, finalRemarks);
+      }
       toast.success('Pharmacy verification rejected');
       setVerifications(prev => prev.filter(v => v.id !== rejectModal));
       setRejectModal(null);
@@ -187,77 +270,146 @@ const PharmacyVerificationsTab = () => {
 
                   {/* Documents with inline previews */}
                   {v.documentUrls && v.documentUrls.length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-muted mb-3">Submitted Verification Documents ({v.documentUrls.length})</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-muted">
+                          Submitted Verification Documents ({v.documentUrls.length})
+                        </p>
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
+                          areAllDocsViewed(v)
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        }`}>
+                          {getViewedCount(v)} of {v.documentUrls.length} Viewed
+                        </span>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {v.documentUrls.map((url, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-surface2 border border-theme rounded-xl overflow-hidden group shadow-sm"
-                          >
-                            {isImageUrl(url) ? (
-                              <div className="relative">
-                                <img
-                                  src={url}
-                                  alt={`Document ${idx + 1}`}
-                                  className="w-full h-44 object-cover bg-surface2"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="hidden items-center justify-center h-44 bg-surface2">
-                                  <div className="text-center">
-                                    <Image className="w-8 h-8 text-muted/40 mx-auto mb-2" />
-                                    <p className="text-xs text-muted">Preview unavailable</p>
+                        {v.documentUrls.map((url, idx) => {
+                          const isViewed = viewedDocs[v.id]?.has(url);
+                          return (
+                            <div
+                              key={idx}
+                              className={`bg-surface2 border rounded-xl overflow-hidden group shadow-sm transition-all ${
+                                isViewed ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-theme'
+                              }`}
+                            >
+                              {isImageUrl(url) ? (
+                                <div className="relative">
+                                  <img
+                                    src={url}
+                                    alt={`Document ${idx + 1}`}
+                                    className="w-full h-44 object-cover bg-surface2"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                  <div className="hidden items-center justify-center h-44 bg-surface2">
+                                    <div className="text-center">
+                                      <Image className="w-8 h-8 text-muted/40 mx-auto mb-2" />
+                                      <p className="text-xs text-muted">Preview unavailable</p>
+                                    </div>
                                   </div>
+                                  <button
+                                    onClick={() => {
+                                      markDocViewed(v.id, url);
+                                      setLightboxUrl(url);
+                                    }}
+                                    className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer"
+                                    title="Click to view & inspect"
+                                  >
+                                    <ZoomIn className="w-7 h-7 text-white drop-shadow-lg" />
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => setLightboxUrl(url)}
-                                  className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                >
-                                  <ZoomIn className="w-7 h-7 text-white drop-shadow-lg" />
-                                </button>
+                              ) : isPdfUrl(url) ? (
+                                <div className="bg-red-500/5 border-b border-theme relative group">
+                                  <iframe
+                                    src={url}
+                                    title={`Pharmacy verification document ${idx + 1}`}
+                                    className="w-full h-44 bg-white"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      markDocViewed(v.id, url);
+                                      window.open(url, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer"
+                                  >
+                                    <span className="px-3 py-1.5 rounded-lg bg-black/75 text-white text-xs font-medium flex items-center gap-1.5">
+                                      <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                                    </span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="h-44 flex flex-col items-center justify-center bg-blue-500/5 border-b border-theme">
+                                  <FileIcon className="w-10 h-10 text-blue-400 mb-2" />
+                                  <p className="text-xs font-semibold text-blue-400">Document</p>
+                                </div>
+                              )}
+                              <div className="p-3 flex items-center justify-between gap-2">
+                                <span className="text-xs text-muted truncate flex-1" title={url.split('/').pop()}>
+                                  {url.split('/').pop()}
+                                </span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {isViewed ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                                      <CheckCircle className="w-3 h-3" /> Viewed
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                                      <Eye className="w-3 h-3" /> Not Viewed
+                                    </span>
+                                  )}
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => markDocViewed(v.id, url)}
+                                    aria-label={`Open pharmacy verification document ${idx + 1}`}
+                                    className="flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400 font-medium"
+                                  >
+                                    View <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
                               </div>
-                            ) : isPdfUrl(url) ? (
-                              <div className="bg-red-500/5 border-b border-theme">
-                                <iframe
-                                  src={url}
-                                  title={`Pharmacy verification document ${idx + 1}`}
-                                  className="w-full h-44 bg-white"
-                                />
-                              </div>
-                            ) : (
-                              <div className="h-44 flex flex-col items-center justify-center bg-blue-500/5 border-b border-theme">
-                                <FileIcon className="w-10 h-10 text-blue-400 mb-2" />
-                                <p className="text-xs font-semibold text-blue-400">Document</p>
-                              </div>
-                            )}
-                            <div className="p-3 flex items-center justify-between">
-                              <span className="text-xs text-muted truncate flex-1 mr-2">
-                                {url.split('/').pop()}
-                              </span>
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label={`Open pharmacy verification document ${idx + 1}`}
-                                className="flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400 font-medium whitespace-nowrap"
-                              >
-                                View <ExternalLink className="w-3 h-3" />
-                              </a>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
+                      </div>
+
+                      {/* Document inspection status alert */}
+                      <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs font-medium ${
+                        areAllDocsViewed(v)
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          {areAllDocsViewed(v) ? (
+                            <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                          ) : (
+                            <Eye className="w-4 h-4 text-amber-400 shrink-0" />
+                          )}
+                          <span>
+                            {areAllDocsViewed(v)
+                              ? 'All verification documents have been viewed and inspected. Approval is unlocked.'
+                              : `Mandatory Document Verification: You must inspect all documents before approving (${getViewedCount(v)} of ${v.documentUrls.length} viewed). Click "View" on each document to inspect.`}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* No documents warning */}
+                  {/* No documents warning - Blocks approval */}
                   {(!v.documentUrls || v.documentUrls.length === 0) && (
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
-                      <Shield className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                      <p className="text-sm text-amber-400">No documents were uploaded with this verification request.</p>
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-400">Approval Blocked: No verification documents uploaded</p>
+                        <p className="text-xs text-red-300/80 mt-0.5">
+                          This pharmacy cannot be approved without valid licensing documents. Please reject the application to request required documentation.
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -271,23 +423,38 @@ const PharmacyVerificationsTab = () => {
 
                   {/* Action buttons for PENDING */}
                   {activeTab === 'PENDING' && (
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
                       <button
-                        onClick={() => handleApprove(v.id)}
-                        disabled={actionLoading === v.id}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-emerald-600/20 disabled:opacity-60"
+                        onClick={() => handleApprove(v)}
+                        disabled={actionLoading === v.id || !areAllDocsViewed(v)}
+                        title={
+                          !v.documentUrls || v.documentUrls.length === 0
+                            ? 'Cannot approve without documents'
+                            : !areAllDocsViewed(v)
+                            ? `Please view all documents before approving (${getViewedCount(v)}/${v.documentUrls.length} viewed)`
+                            : 'Approve pharmacy application'
+                        }
+                        className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all shadow-md ${
+                          areAllDocsViewed(v)
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20 cursor-pointer'
+                            : 'bg-emerald-600/20 text-emerald-400/50 border border-emerald-500/20 cursor-not-allowed'
+                        }`}
                       >
                         {actionLoading === v.id ? (
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : !areAllDocsViewed(v) ? (
+                          <Lock className="w-4 h-4" />
                         ) : (
                           <CheckCircle className="w-4 h-4" />
                         )}
-                        Approve Pharmacy
+                        {areAllDocsViewed(v)
+                          ? 'Approve Pharmacy'
+                          : `View Documents to Approve (${getViewedCount(v)}/${v.documentUrls?.length || 0})`}
                       </button>
                       <button
                         onClick={() => { setRejectModal(v.id); setRejectRemarks(''); }}
                         disabled={actionLoading === v.id}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-red-600/15 hover:bg-red-600/25 text-red-400 text-sm font-semibold rounded-xl border border-red-500/30 transition-all disabled:opacity-60"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-red-600/15 hover:bg-red-600/25 text-red-400 text-sm font-semibold rounded-xl border border-red-500/30 transition-all disabled:opacity-60 cursor-pointer"
                       >
                         <XCircle className="w-4 h-4" />
                         Reject Application

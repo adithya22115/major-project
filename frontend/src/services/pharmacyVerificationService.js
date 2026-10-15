@@ -20,6 +20,11 @@ export const getAllPharmacyVerificationsByStatus = async (status) => {
   return response.data;
 };
 
+export const getPharmacyVerificationByUserId = async (userId) => {
+  const response = await api.get(`/pharmacy-verification/admin/user/${userId}`);
+  return response.data;
+};
+
 export const approvePharmacyVerification = async (id, remarks) => {
   const response = await api.put(`/pharmacy-verification/admin/${id}/approve`, { remarks });
   return response.data;

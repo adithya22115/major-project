@@ -20,6 +20,11 @@ export const getAllDoctorVerificationsByStatus = async (status) => {
   return response.data;
 };
 
+export const getDoctorVerificationByUserId = async (userId) => {
+  const response = await api.get(`/doctor-verification/admin/user/${userId}`);
+  return response.data;
+};
+
 export const approveDoctorVerification = async (id, remarks) => {
   const response = await api.put(`/doctor-verification/admin/${id}/approve`, { remarks });
   return response.data;
