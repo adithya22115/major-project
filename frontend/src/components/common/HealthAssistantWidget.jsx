@@ -20,6 +20,9 @@ const SEVERITY_CONFIG = {
   HIGH: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', label: 'High Severity', icon: '🔴' },
 };
 
+const ASSISTANT_MEMORY_KEY = 'medicycle-health-assistant-memory';
+const MAX_MEMORY_MESSAGES = 12;
+
 const HealthAssistantWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -51,6 +54,33 @@ const HealthAssistantWidget = () => {
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const memoryLoadedRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(ASSISTANT_MEMORY_KEY) || '{}');
+      if (Array.isArray(stored.messages)) setMessages(stored.messages);
+      if (Array.isArray(stored.conversationHistory)) {
+        setConversationHistory(stored.conversationHistory.slice(-MAX_MEMORY_MESSAGES));
+      }
+      if (stored.age) setAge(stored.age);
+      if (stored.gender) setGender(stored.gender);
+    } catch {
+      sessionStorage.removeItem(ASSISTANT_MEMORY_KEY);
+    } finally {
+      memoryLoadedRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!memoryLoadedRef.current) return;
+    sessionStorage.setItem(ASSISTANT_MEMORY_KEY, JSON.stringify({
+      messages: messages.slice(-MAX_MEMORY_MESSAGES),
+      conversationHistory: conversationHistory.slice(-MAX_MEMORY_MESSAGES),
+      age,
+      gender,
+    }));
+  }, [messages, conversationHistory, age, gender]);
 
   // Screen resize listener for mobile responsiveness
   useEffect(() => {
@@ -103,7 +133,7 @@ const HealthAssistantWidget = () => {
     try {
       const response = await checkSymptoms(
         messageText,
-        conversationHistory,
+        conversationHistory.slice(-MAX_MEMORY_MESSAGES),
         age ? parseInt(age) : null,
         gender || null
       );
@@ -122,7 +152,7 @@ const HealthAssistantWidget = () => {
         ...prev,
         { role: 'user', content: messageText },
         { role: 'assistant', content: response.aiResponse },
-      ]);
+      ].slice(-MAX_MEMORY_MESSAGES));
     } catch (err) {
       setMessages(prev => [
         ...prev,
@@ -153,6 +183,7 @@ const HealthAssistantWidget = () => {
     setAge('');
     setGender('');
     setShowInfoFields(false);
+    sessionStorage.removeItem(ASSISTANT_MEMORY_KEY);
   };
 
   const handleConsultSubmit = async (e) => {

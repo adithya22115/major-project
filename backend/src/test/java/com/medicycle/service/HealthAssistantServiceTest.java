@@ -46,6 +46,29 @@ class HealthAssistantServiceTest {
     }
 
     @Test
+    void analyzeSymptoms_shouldUseEarlierUserSymptomsInFallbackFollowUp() {
+        SymptomCheckRequest request = SymptomCheckRequest.builder()
+                .message("It is still happening today")
+                .conversationHistory(List.of(
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("user")
+                                .content("I have chest pain")
+                                .build(),
+                        SymptomCheckRequest.ChatMessage.builder()
+                                .role("assistant")
+                                .content("Please seek urgent medical attention.")
+                                .build()
+                ))
+                .build();
+
+        SymptomCheckResponse response = healthAssistantService.analyzeSymptoms(request);
+
+        assertEquals("HIGH", response.getSeverity());
+        assertTrue(response.isSeekDoctorAdvice());
+        assertTrue(response.getAiResponse().contains("what you shared earlier"));
+    }
+
+    @Test
     void analyzeSymptoms_shouldReturnFallback_whenApiUnreachable() {
         // A non-blank key against an unroutable local port: connection refused -> fallback, no hang.
         HealthAssistantService unreachable = new HealthAssistantService(

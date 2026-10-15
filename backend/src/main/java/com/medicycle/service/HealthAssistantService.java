@@ -26,6 +26,9 @@ import java.util.regex.Pattern;
 @Slf4j
 public class HealthAssistantService {
 
+    private static final int MAX_HISTORY_MESSAGES = 12;
+    private static final int MAX_HISTORY_MESSAGE_LENGTH = 1200;
+
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
@@ -123,13 +126,11 @@ public class HealthAssistantService {
         systemMessage.put("role", "system");
         systemMessage.put("content", SYSTEM_PROMPT);
 
-        if (request.getConversationHistory() != null) {
-            for (SymptomCheckRequest.ChatMessage msg : request.getConversationHistory()) {
+        for (SymptomCheckRequest.ChatMessage msg : recentHistory(request.getConversationHistory())) {
                 String role = "user".equalsIgnoreCase(msg.getRole()) ? "user" : "assistant";
                 ObjectNode historyMessage = messages.addObject();
                 historyMessage.put("role", role);
                 historyMessage.put("content", msg.getContent());
-            }
         }
 
         ObjectNode userMessage = messages.addObject();
@@ -228,14 +229,19 @@ public class HealthAssistantService {
     }
 
     private SymptomCheckResponse generateFallbackAnalysis(SymptomCheckRequest request) {
-        String msg = (request.getMessage() != null ? request.getMessage() : "").toLowerCase();
+        List<SymptomCheckRequest.ChatMessage> history = recentHistory(request.getConversationHistory());
+        String msg = buildMemoryAwareMessage(request, history).toLowerCase();
 
         List<String> conditions = new ArrayList<>();
         String severity = "LOW";
         boolean seekDoctor = false;
         StringBuilder advice = new StringBuilder();
 
-        advice.append("Hello! I have evaluated the symptoms you described:\n\n");
+        if (!history.isEmpty()) {
+            advice.append("Thanks for the update. I’m using what you shared earlier in this conversation together with your latest message.\n\n");
+        } else {
+            advice.append("Hello! I have evaluated the symptoms you described:\n\n");
+        }
 
         if (msg.contains("chest pain") || msg.contains("breathing") || msg.contains("shortness of breath") || msg.contains("fainting") || msg.contains("seizure")) {
             conditions.addAll(List.of("Severe Respiratory Distress", "Cardiac/Cardiovascular Event", "Emergency Acute Condition"));
@@ -311,6 +317,40 @@ public class HealthAssistantService {
             sb.append("\n[Patient gender: ").append(request.getGender()).append("]");
         }
         return sb.toString();
+    }
+
+    private List<SymptomCheckRequest.ChatMessage> recentHistory(
+            List<SymptomCheckRequest.ChatMessage> history) {
+        if (history == null || history.isEmpty()) {
+            return List.of();
+        }
+
+        List<SymptomCheckRequest.ChatMessage> validHistory = history.stream()
+                .filter(msg -> msg != null
+                        && StringUtils.hasText(msg.getContent())
+                        && ("user".equalsIgnoreCase(msg.getRole())
+                        || "assistant".equalsIgnoreCase(msg.getRole())))
+                .map(msg -> SymptomCheckRequest.ChatMessage.builder()
+                        .role(msg.getRole().toLowerCase())
+                        .content(msg.getContent().trim()
+                                .substring(0, Math.min(msg.getContent().trim().length(),
+                                        MAX_HISTORY_MESSAGE_LENGTH)))
+                        .build())
+                .skip(Math.max(0, history.size() - MAX_HISTORY_MESSAGES))
+                .toList();
+        int start = Math.max(0, validHistory.size() - MAX_HISTORY_MESSAGES);
+        return validHistory.subList(start, validHistory.size());
+    }
+
+    private String buildMemoryAwareMessage(
+            SymptomCheckRequest request,
+            List<SymptomCheckRequest.ChatMessage> history) {
+        StringBuilder combined = new StringBuilder();
+        history.stream()
+                .filter(msg -> "user".equals(msg.getRole()))
+                .forEach(msg -> combined.append(msg.getContent()).append('\n'));
+        combined.append(request.getMessage() == null ? "" : request.getMessage());
+        return combined.toString();
     }
 
 }
