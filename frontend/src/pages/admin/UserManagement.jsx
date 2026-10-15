@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, updateUserStatus } from '../../services/adminService';
+import { getUsers } from '../../services/adminService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
 import { toast } from 'react-hot-toast';
-import { Users, CheckCircle, Shield, XCircle, UserCheck, Ban } from 'lucide-react';
+import { Users, CheckCircle, XCircle } from 'lucide-react';
 
 const roleBadge = {
   DONOR:     'bg-blue-500/15 text-blue-400 border-blue-500/30',
@@ -13,9 +13,6 @@ const roleBadge = {
   PHARMACY:  'bg-purple-500/15 text-purple-400 border-purple-500/30',
   ADMIN:     'bg-amber-500/15 text-amber-400 border-amber-500/30',
 };
-const userActionClass =
-  'flex items-center gap-1.5 px-3 py-1.5 bg-surface2 text-primary hover:bg-surface border border-theme rounded-lg text-xs font-medium transition-colors';
-
 const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
@@ -35,16 +32,6 @@ const UserManagement = () => {
       toast.error('Failed to load users');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleStatusChange = async (id, isVerified) => {
-    try {
-      await updateUserStatus(id, { isVerified });
-      setUsers(users.map(u => u.id === id ? { ...u, isVerified } : u));
-      toast.success(`User ${isVerified ? 'activated' : 'suspended'} successfully`);
-    } catch {
-      toast.error('Failed to update user status');
     }
   };
 
@@ -110,7 +97,6 @@ const UserManagement = () => {
                   <th className="px-6 py-3">Role</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3">Joined</th>
-                  <th className="px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-theme">
@@ -148,29 +134,6 @@ const UserManagement = () => {
                     </td>
                     <td className="px-6 py-4 text-subtle">
                       {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      {u.role !== 'ADMIN' && u.role !== 'PHARMACY' && (
-                        <div className="flex gap-2">
-                          {u.verified ? (
-                            <button
-                              onClick={() => handleStatusChange(u.id, false)}
-                              className={userActionClass}
-                            >
-                              <Ban className="h-3 w-3" />
-                              Suspend
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleStatusChange(u.id, true)}
-                              className={userActionClass}
-                            >
-                              <UserCheck className="h-3 w-3" />
-                              Activate
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </td>
                   </tr>
                 ))}

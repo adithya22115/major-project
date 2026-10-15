@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from './Sidebar';
 import ThemeToggle from './ThemeToggle';
-import HealthAssistantWidget from './HealthAssistantWidget';
 import { useAuth } from '../../context/AuthContext';
 import { Menu, Bell } from 'lucide-react';
 
@@ -102,9 +101,6 @@ const Layout = () => {
           </div>
         </main>
       </div>
-
-      {/* AI Health Assistant Widget */}
-      <HealthAssistantWidget />
 
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
