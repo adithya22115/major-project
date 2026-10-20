@@ -50,7 +50,7 @@ public class PharmacyVerification {
     private List<String> documentUrls = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "varchar(50) default 'PHARMACY'")
+    @Column(name = "verification_type", nullable = false, length = 50)
     @Builder.Default
     private VerificationType verificationType = VerificationType.PHARMACY;
 
