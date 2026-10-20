@@ -67,8 +67,9 @@ public class AdminController {
     @PutMapping("/users/{id}/status")
     public ResponseEntity<UserResponse> updateUserStatus(
             @PathVariable Long id,
-            @RequestBody Map<String, Boolean> body) {
-        boolean verified = body.getOrDefault("isVerified", false);
-        return ResponseEntity.ok(adminService.updateUserStatus(id, verified));
+            @RequestBody Map<String, Object> body) {
+        boolean verified = Boolean.TRUE.equals(body.get("isVerified"));
+        String remarks = body.get("remarks") instanceof String s ? s : null;
+        return ResponseEntity.ok(adminService.updateUserStatus(id, verified, remarks));
     }
 }

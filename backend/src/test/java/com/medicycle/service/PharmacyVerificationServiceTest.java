@@ -56,6 +56,7 @@ class PharmacyVerificationServiceTest {
                 .pharmacyAddress("123 Street").city("Mumbai").state("Maharashtra")
                 .pincode("400001").contactPhone("9876543210")
                 .contactEmail("pharmacy@test.com")
+                .documentUrls(List.of("https://example.com/license.pdf"))
                 .status(VerificationStatus.PENDING)
                 .build();
     }
@@ -173,6 +174,15 @@ class PharmacyVerificationServiceTest {
         assertTrue(pharmacyUser.isVerified());
         verify(notificationService).createNotification(eq(pharmacyUser), eq("Verification Approved"),
                 anyString(), eq("VERIFICATION"));
+    }
+
+    @Test
+    void approveVerification_shouldThrow_whenNoDocuments() {
+        verification.setDocumentUrls(Collections.emptyList());
+        when(verificationRepository.findById(1L)).thenReturn(Optional.of(verification));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> pharmacyVerificationService.approveVerification(1L, "Approved", 2L));
     }
 
     @Test

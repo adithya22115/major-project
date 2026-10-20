@@ -105,10 +105,21 @@ public class PharmacyVerificationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public PharmacyVerificationResponse getByUserId(Long userId) {
+        return verificationRepository.findByUserId(userId)
+                .map(this::toResponse)
+                .orElse(null);
+    }
+
     @Transactional
     public PharmacyVerificationResponse approveVerification(Long verificationId, String remarks, Long adminId) {
         PharmacyVerification verification = verificationRepository.findById(verificationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Verification not found: " + verificationId));
+
+        if (verification.getDocumentUrls() == null || verification.getDocumentUrls().isEmpty()) {
+            throw new IllegalArgumentException("Cannot approve pharmacy verification: No verification documents have been uploaded.");
+        }
 
         verification.setStatus(VerificationStatus.APPROVED);
         verification.setAdminRemarks(remarks);

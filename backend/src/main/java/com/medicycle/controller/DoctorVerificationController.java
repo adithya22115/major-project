@@ -47,6 +47,15 @@ public class DoctorVerificationController {
         return ResponseEntity.ok(verificationService.getAllByStatus(status));
     }
 
+    @GetMapping("/admin/user/{userId}")
+    public ResponseEntity<DoctorVerificationResponse> getVerificationByUserId(@PathVariable Long userId) {
+        DoctorVerificationResponse response = verificationService.getByUserId(userId);
+        if (response == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/admin/{id}/approve")
     public ResponseEntity<DoctorVerificationResponse> approveVerification(
             @PathVariable Long id,

@@ -47,6 +47,15 @@ public class PharmacyVerificationController {
         return ResponseEntity.ok(verificationService.getAllByStatus(status));
     }
 
+    @GetMapping("/admin/user/{userId}")
+    public ResponseEntity<PharmacyVerificationResponse> getVerificationByUserId(@PathVariable Long userId) {
+        PharmacyVerificationResponse response = verificationService.getByUserId(userId);
+        if (response == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/admin/{id}/approve")
     public ResponseEntity<PharmacyVerificationResponse> approveVerification(
             @PathVariable Long id,

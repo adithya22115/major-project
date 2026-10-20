@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,8 @@ public class AdminService {
     private final NotificationRepository notificationRepository;
     private final AuditLogRepository auditLogRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final PharmacyVerificationRepository pharmacyVerificationRepository;
+    private final DoctorVerificationRepository doctorVerificationRepository;
     private final AuditService auditService;
     private final EmailService emailService;
 
@@ -160,19 +163,73 @@ public class AdminService {
 
     @Transactional
     public UserResponse updateUserStatus(Long userId, boolean verified) {
+        return updateUserStatus(userId, verified, null);
+    }
+
+    @Transactional
+    public UserResponse updateUserStatus(Long userId, boolean verified, String remarks) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        if (verified) {
+            if (user.getRole().getRoleName() == RoleType.PHARMACY) {
+                var pvOpt = pharmacyVerificationRepository.findByUserId(userId);
+                if (pvOpt.isEmpty() || pvOpt.get().getDocumentUrls() == null || pvOpt.get().getDocumentUrls().isEmpty()) {
+                    throw new IllegalArgumentException("Cannot approve pharmacy: No verification documents have been uploaded.");
+                }
+                var pv = pvOpt.get();
+                pv.setStatus(VerificationStatus.APPROVED);
+                pv.setAdminRemarks(remarks != null && !remarks.isBlank() ? remarks : "Approved by admin");
+                pv.setReviewedAt(LocalDateTime.now());
+                pharmacyVerificationRepository.save(pv);
+            } else if (user.getRole().getRoleName() == RoleType.DOCTOR) {
+                var dvOpt = doctorVerificationRepository.findByUserId(userId);
+                if (dvOpt.isEmpty() || dvOpt.get().getDocumentUrls() == null || dvOpt.get().getDocumentUrls().isEmpty()) {
+                    throw new IllegalArgumentException("Cannot approve doctor: No verification documents have been uploaded.");
+                }
+                var dv = dvOpt.get();
+                dv.setStatus(VerificationStatus.APPROVED);
+                dv.setAdminRemarks(remarks != null && !remarks.isBlank() ? remarks : "Approved by admin");
+                dv.setReviewedAt(LocalDateTime.now());
+                doctorVerificationRepository.save(dv);
+            }
+        } else {
+            // On rejection, also update the verification record status if it exists
+            if (user.getRole().getRoleName() == RoleType.PHARMACY) {
+                pharmacyVerificationRepository.findByUserId(userId).ifPresent(pv -> {
+                    if (pv.getStatus() == VerificationStatus.PENDING) {
+                        pv.setStatus(VerificationStatus.REJECTED);
+                        pv.setAdminRemarks(remarks != null && !remarks.isBlank() ? remarks : "Application rejected by administrator.");
+                        pv.setReviewedAt(LocalDateTime.now());
+                        pharmacyVerificationRepository.save(pv);
+                    }
+                });
+            } else if (user.getRole().getRoleName() == RoleType.DOCTOR) {
+                doctorVerificationRepository.findByUserId(userId).ifPresent(dv -> {
+                    if (dv.getStatus() == VerificationStatus.PENDING) {
+                        dv.setStatus(VerificationStatus.REJECTED);
+                        dv.setAdminRemarks(remarks != null && !remarks.isBlank() ? remarks : "Application rejected by administrator.");
+                        dv.setReviewedAt(LocalDateTime.now());
+                        doctorVerificationRepository.save(dv);
+                    }
+                });
+            }
+        }
+
         user.setVerified(verified);
         user = userRepository.save(user);
         auditService.log(user, verified ? "USER_VERIFIED" : "USER_SUSPENDED", "User", user.getId());
+
+        String emailRemarks = (remarks != null && !remarks.isBlank()) ? remarks
+                : verified ? "Your account has been verified and activated by an administrator."
+                           : "Your account access has been rejected by an administrator. Please review your submitted information and contact support if needed.";
 
         emailService.sendAccountVerificationStatusEmail(
                 user.getEmail(),
                 user.getName(),
                 user.getRole().getRoleName().name(),
                 verified,
-                verified ? "Your account has been verified and activated by an administrator."
-                         : "Your account access has been suspended by an administrator.");
+                emailRemarks);
 
         return DtoMapper.toUserResponse(user);
     }

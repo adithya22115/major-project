@@ -131,10 +131,21 @@ public class DoctorVerificationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public DoctorVerificationResponse getByUserId(Long userId) {
+        return verificationRepository.findByUserId(userId)
+                .map(this::toResponse)
+                .orElse(null);
+    }
+
     @Transactional
     public DoctorVerificationResponse approveVerification(Long verificationId, String remarks, Long adminId) {
         DoctorVerification verification = verificationRepository.findById(verificationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor verification not found: " + verificationId));
+
+        if (verification.getDocumentUrls() == null || verification.getDocumentUrls().isEmpty()) {
+            throw new IllegalArgumentException("Cannot approve doctor verification: No verification documents have been uploaded.");
+        }
 
         verification.setStatus(VerificationStatus.APPROVED);
         verification.setAdminRemarks(remarks);
