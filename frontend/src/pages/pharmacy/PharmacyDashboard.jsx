@@ -8,7 +8,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import { toast } from 'react-hot-toast';
-import { Clock, Package, ClipboardList, CheckCircle, ShieldCheck } from 'lucide-react';
+import { Clock, Package, ClipboardList, ShieldCheck } from 'lucide-react';
 
 const PharmacyDashboard = () => {
   const { user } = useAuth();

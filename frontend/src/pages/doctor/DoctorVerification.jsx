@@ -7,7 +7,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import {
   Stethoscope, Upload, CheckCircle, XCircle, Clock,
-  AlertTriangle, ExternalLink, Trash2, ArrowRight
+  ExternalLink, Trash2, ArrowRight
 } from 'lucide-react';
 
 const inputClass =

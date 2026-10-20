@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/userService';
-import { getCurrentPosition, formatDistance } from '../utils/geo';
-import { Mail, MapPin, Phone, Shield, Save, X, Loader2, Locate, Navigation, CheckCircle } from 'lucide-react';
+import { getCurrentPosition } from '../utils/geo';
+import { Mail, MapPin, Phone, Shield, Save, X, Loader2, Locate } from 'lucide-react';
 
 const inputClass =
   'block w-full px-4 py-2.5 bg-surface2 border border-theme rounded-lg text-primary placeholder-subtle text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors';

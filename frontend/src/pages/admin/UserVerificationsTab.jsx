@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   CheckCircle, Clock, ShieldCheck, XCircle, Building2, Stethoscope,
-  User, ArrowRight, AlertCircle, Heart, UserCheck
+  User, ArrowRight, Heart
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getUsers, updateUserStatus } from '../../services/adminService';

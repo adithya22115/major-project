@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import {
   Settings as SettingsIcon, Sun, Moon, Monitor,
   Shield, Lock, Bell, Mail, Database, Globe,
-  Eye, EyeOff, Save, RotateCcw, ChevronRight,
+  Eye, Save, RotateCcw, ChevronRight,
   AlertTriangle, CheckCircle, Info, Key, Clock,
   Upload, FileText, Zap, Server
 } from 'lucide-react';

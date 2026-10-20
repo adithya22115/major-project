@@ -5,7 +5,7 @@ import { createRequest } from '../../services/requestService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import FileUpload from '../../components/common/FileUpload';
 import { toast } from 'react-hot-toast';
-import { Package, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, ShieldAlert } from 'lucide-react';
 
 const MedicineDetails = () => {
   const { id } = useParams();

@@ -2,8 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import {
-  Building2, Stethoscope, ArrowRight, ShieldCheck, CheckCircle2,
-  FileCheck2, Pill, Users, Sparkles
+  Building2, Stethoscope, ArrowRight, CheckCircle2, Sparkles
 } from 'lucide-react';
 
 const RegisterPage = () => {

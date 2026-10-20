@@ -10,8 +10,8 @@ import { getUsers, updateUserStatus } from '../../services/adminService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import {
-  CheckCircle, XCircle, Clock, FileText, ExternalLink,
-  ChevronDown, ChevronUp, Shield, Image, FileIcon, ZoomIn, X, Stethoscope, GraduationCap, Award,
+  CheckCircle, XCircle, Clock, ExternalLink,
+  ChevronDown, ChevronUp, Shield, Image, FileIcon, ZoomIn, X, Stethoscope,
   Eye, Lock, AlertCircle
 } from 'lucide-react';
 

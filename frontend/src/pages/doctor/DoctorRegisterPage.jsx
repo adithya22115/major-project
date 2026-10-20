@@ -8,7 +8,7 @@ import Navbar from '../../components/common/Navbar';
 import { useEmailCheck } from '../../hooks/useEmailCheck';
 import {
   Stethoscope, Upload, CheckCircle, FileCheck, ExternalLink,
-  Trash2, AlertTriangle, ArrowRight, ShieldCheck, Mail, Lock, User, Phone, MapPin,
+  Trash2, AlertTriangle, ArrowRight, ShieldCheck, User,
   Loader2, AlertCircle
 } from 'lucide-react';
 
