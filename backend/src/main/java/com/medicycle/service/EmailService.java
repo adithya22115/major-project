@@ -7,6 +7,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import com.resend.Resend;
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.CreateEmailOptions;
 
 @Slf4j
 @Service
@@ -330,33 +333,29 @@ public class EmailService {
     }
 
     private void sendEmail(String to, String subject, String text) {
-        log.info("Email diagnostic: mailSender configured = {}", mailSender != null);
-        if (mailSender == null) {
-            log.warn("JavaMailSender is not configured. Email will NOT be delivered.");
-            log.info("=== EMAIL (console fallback — mail not configured) ===");
-            log.info("To: {}", to);
-            log.info("Subject: {}", subject);
-            log.info("Body:\n{}", text);
-            log.info("=====================================================");
+        String apiKey = System.getenv("RESEND_API_KEY");
+
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("RESEND_API_KEY is missing. Email was not sent.");
             return;
         }
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(text);
-            mailSender.send(message);
-            log.info("Email sent successfully to: {}", to);
+            Resend resend = new Resend(apiKey);
+
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from("MediCycle <onboarding@resend.dev>")
+                    .to("delivered@resend.dev")
+                    .subject(subject)
+                    .text(text)
+                    .build();
+
+            var response = resend.emails().send(params);
+            log.info("Resend accepted email. Response: {}", response);
+
         } catch (Exception e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
-            log.warn("Falling back to console logging for email content");
-            log.info("=== EMAIL (console fallback — send failed) ===");
-            log.info("To: {}", to);
-            log.info("Subject: {}", subject);
-            log.info("Body:\n{}", text);
-            log.info("===============================================");
+            log.error("Resend email failed: {}", e.getMessage());
         }
     }
+
 }
