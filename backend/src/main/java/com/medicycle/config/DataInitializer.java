@@ -60,8 +60,10 @@ public class DataInitializer implements CommandLineRunner {
     private void migrateRoleConstraint() {
         try {
             jdbcTemplate.execute("ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_role_name_check");
-            jdbcTemplate.execute("ALTER TABLE pharmacy_verifications ADD COLUMN IF NOT EXISTS verification_type VARCHAR(50) DEFAULT 'PHARMACY'");
-            jdbcTemplate.execute("UPDATE pharmacy_verifications SET verification_type = 'PHARMACY' WHERE verification_type IS NULL");
+            jdbcTemplate.execute(
+                    "ALTER TABLE pharmacy_verifications ADD COLUMN IF NOT EXISTS verification_type VARCHAR(50) DEFAULT 'PHARMACY'");
+            jdbcTemplate.execute(
+                    "UPDATE pharmacy_verifications SET verification_type = 'PHARMACY' WHERE verification_type IS NULL");
         } catch (Exception ex) {
             log.debug("Role/verification constraint migration skipped: {}", ex.getMessage());
         }
@@ -69,8 +71,8 @@ public class DataInitializer implements CommandLineRunner {
 
     private void seedRoles() {
         for (RoleType roleType : RoleType.values()) {
-            roleRepository.findByRoleName(roleType).orElseGet(() ->
-                    roleRepository.save(Role.builder().roleName(roleType).build()));
+            roleRepository.findByRoleName(roleType)
+                    .orElseGet(() -> roleRepository.save(Role.builder().roleName(roleType).build()));
         }
     }
 
@@ -115,8 +117,7 @@ public class DataInitializer implements CommandLineRunner {
                             .build();
                     userRepository.save(admin);
                     log.info("Seeded admin account for {}", trimmedAdminEmail);
-                }
-        );
+                });
     }
 
     private void seedDoctorUser() {

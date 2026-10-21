@@ -90,7 +90,8 @@ public class AuthService {
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-        // Auto-verify donors and recipients; pharmacies require admin document verification
+        // Auto-verify donors and recipients; pharmacies require admin document
+        // verification
         boolean autoVerify = (request.getRole() == RoleType.DONOR || request.getRole() == RoleType.RECIPIENT);
 
         User user = User.builder()
@@ -150,7 +151,8 @@ public class AuthService {
         ConsumptionProbe probe = rateLimiterService.tryConsumeLogin(clientIp);
         if (!probe.isConsumed()) {
             long waitSeconds = probe.getNanosToWaitForRefill() / 1_000_000_000;
-            throw new IllegalStateException("Too many login attempts. Please try again in " + waitSeconds + " seconds.");
+            throw new IllegalStateException(
+                    "Too many login attempts. Please try again in " + waitSeconds + " seconds.");
         }
 
         String cleanEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
@@ -158,7 +160,8 @@ public class AuthService {
 
         if (user != null && user.getLockedUntil() != null) {
             if (LocalDateTime.now().isBefore(user.getLockedUntil())) {
-                long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), user.getLockedUntil()).toMinutes();
+                long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), user.getLockedUntil())
+                        .toMinutes();
                 throw new LockedException("Account is locked. Try again in " + minutesRemaining + " minutes.");
             } else {
                 user.setLockedUntil(null);
@@ -169,7 +172,8 @@ public class AuthService {
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(cleanEmail, request.getPassword() != null ? request.getPassword().trim() : ""));
+                    new UsernamePasswordAuthenticationToken(cleanEmail,
+                            request.getPassword() != null ? request.getPassword().trim() : ""));
         } catch (Exception e) {
             if (user != null) {
                 loginAttemptService.handleFailedLogin(user);
@@ -371,20 +375,30 @@ public class AuthService {
 
     @Transactional
     public void forgotPassword(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("No account found with email: " + email));
+        String normalizedEmail = email.trim().toLowerCase();
 
-        // Invalidate any existing reset tokens for this user
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No account found with email: " + normalizedEmail));
+
         passwordResetTokenRepository.deleteByUser(user);
 
         PasswordResetToken resetToken = PasswordResetToken.builder()
                 .token(UUID.randomUUID().toString())
                 .user(user)
                 .build();
+
         passwordResetTokenRepository.save(resetToken);
 
-        emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), resetToken.getToken());
-        auditService.log(user, "PASSWORD_RESET_REQUESTED", "User", user.getId());
+        emailService.sendPasswordResetEmail(
+                user.getEmail(),
+                user.getName(),
+                resetToken.getToken());
+
+        auditService.log(user, "PASSWORD_RESET_REQUESTED",
+                "User", user.getId());
+
+        log.info("Password reset requested for an existing account");
     }
 
     @Transactional
@@ -425,7 +439,8 @@ public class AuthService {
             throw new IllegalArgumentException("Guest registration only available for DONOR or RECIPIENT");
         }
 
-        String guestEmail = request.getRole().name().toLowerCase() + "-" + UUID.randomUUID().toString().substring(0, 8) + "@guest.medicycle";
+        String guestEmail = request.getRole().name().toLowerCase() + "-" + UUID.randomUUID().toString().substring(0, 8)
+                + "@guest.medicycle";
         String randomPassword = UUID.randomUUID().toString();
 
         Role role = roleRepository.findByRoleName(request.getRole())
@@ -437,8 +452,10 @@ public class AuthService {
         if (request.getPincode() != null && !request.getPincode().isBlank()) {
             try {
                 Map<String, Object> location = pincodeLookupService.lookup(request.getPincode());
-                if (location.get("city") != null) city = (String) location.get("city");
-                if (location.get("state") != null) state = (String) location.get("state");
+                if (location.get("city") != null)
+                    city = (String) location.get("city");
+                if (location.get("state") != null)
+                    state = (String) location.get("state");
             } catch (Exception e) {
                 log.warn("Pincode lookup failed for: {}", request.getPincode());
             }
@@ -510,8 +527,7 @@ public class AuthService {
     }
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$"
-    );
+            "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$");
 
     @Transactional(readOnly = true)
     public EmailCheckResponse checkEmail(String email) {
@@ -589,14 +605,16 @@ public class AuthService {
             if (attr != null && attr.size() > 0) {
                 return true;
             }
-            // Fallback: check if domain has an A record (some domains handle mail without explicit MX)
+            // Fallback: check if domain has an A record (some domains handle mail without
+            // explicit MX)
             Attributes aAttrs = ictx.getAttributes(domain, new String[] { "A" });
             return aAttrs != null && aAttrs.get("A") != null;
         } catch (NamingException e) {
             // DNS resolution failed -> domain does not exist
             return false;
         } catch (Exception e) {
-            // Network issue or timeout: fallback to true to prevent blocking valid user signup
+            // Network issue or timeout: fallback to true to prevent blocking valid user
+            // signup
             return true;
         }
     }
