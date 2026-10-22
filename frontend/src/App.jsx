@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -58,148 +59,304 @@ function App() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400 font-medium">Loading MediCycle...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
+          <p className="mt-4 text-gray-500 dark:text-gray-400 font-medium">
+            Loading MediCycle...
+          </p>
         </div>
       </div>
     );
   }
 
-  // Helper to get dashboard path by role
   const getDashboardPath = (role, verified) => {
     switch (role) {
-      case 'DONOR': return '/donor/dashboard';
-      case 'RECIPIENT': return '/recipient/dashboard';
-      case 'PHARMACY': return verified ? '/pharmacy/dashboard' : '/pharmacy/verification';
-      case 'ADMIN': return '/admin/dashboard';
-      case 'DOCTOR': return verified ? '/doctor/dashboard' : '/doctor/verification';
-      default: return '/';
+      case 'DONOR':
+        return '/donor/dashboard';
+      case 'RECIPIENT':
+        return '/recipient/dashboard';
+      case 'PHARMACY':
+        return verified ? '/pharmacy/dashboard' : '/pharmacy/verification';
+      case 'ADMIN':
+        return '/admin/dashboard';
+      case 'DOCTOR':
+        return verified ? '/doctor/dashboard' : '/doctor/verification';
+      default:
+        return '/';
     }
   };
 
-  const isDonor = user?.role === 'DONOR';
-  const isRecipient = user?.role === 'RECIPIENT';
-  const isPharmacy = user?.role === 'PHARMACY';
-  const isAdmin = user?.role === 'ADMIN';
-  const isDoctor = user?.role === 'DOCTOR';
+  const isAuthenticated = Boolean(user && !user.isGuest);
+  const isDonor = isAuthenticated && user.role === 'DONOR';
+  const isRecipient = isAuthenticated && user.role === 'RECIPIENT';
+  const isPharmacy = isAuthenticated && user.role === 'PHARMACY';
+  const isAdmin = isAuthenticated && user.role === 'ADMIN';
+  const isDoctor = isAuthenticated && user.role === 'DOCTOR';
+
+  const pharmacyVerified = isPharmacy && user.verified === true;
+  const doctorVerified = isDoctor && user.verified === true;
+
+  const requireRole = (allowed, element) => {
+    if (!isAuthenticated) {
+      return <Navigate to="/staff-login" replace />;
+    }
+
+    if (!allowed.includes(user.role)) {
+      return <Navigate to={getDashboardPath(user.role, user.verified)} replace />;
+    }
+
+    return element;
+  };
+
+  const requireVerifiedPharmacy = (element) => {
+    if (!isAuthenticated) {
+      return <Navigate to="/staff-login" replace />;
+    }
+
+    if (!isPharmacy) {
+      return <Navigate to={getDashboardPath(user.role, user.verified)} replace />;
+    }
+
+    if (!pharmacyVerified) {
+      return <Navigate to="/pharmacy/verification" replace />;
+    }
+
+    return element;
+  };
 
   return (
     <ThemeProvider>
       <BrowserRouter>
         <Toaster position="top-right" />
+
         <Routes>
-          {/* Landing page always available */}
-          <Route path="/" element={
-            (isDonor && !user?.isGuest) ? <Navigate to="/donor/dashboard" replace /> :
-            (isRecipient && !user?.isGuest) ? <Navigate to="/recipient/dashboard" replace /> :
-            <LandingPage />
-          } />
+          {/* Public landing page */}
+          <Route
+            path="/"
+            element={
+              isDonor || isRecipient
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <LandingPage />
+            }
+          />
 
-          {/* Login only for Admin / Pharmacy */}
-          <Route path="/login" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <LoginPage />
-          } />
-          <Route path="/staff-login" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <LoginPage staffOnly />
-          } />
+          {/* Authentication */}
+          <Route
+            path="/login"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <LoginPage />
+            }
+          />
 
-          {/* Forgot Password */}
+          <Route
+            path="/staff-login"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <LoginPage staffOnly />
+            }
+          />
+
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-
-          {/* Reset Password */}
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* General Register */}
-          <Route path="/register" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <RegisterPage />
-          } />
+          <Route
+            path="/register"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <RegisterPage />
+            }
+          />
 
-          {/* Dedicated Doctor Registration */}
-          <Route path="/doctor-register" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <DoctorRegisterPage />
-          } />
-          <Route path="/doctor/register" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <DoctorRegisterPage />
-          } />
+          {/* Doctor registration */}
+          <Route
+            path="/doctor-register"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <DoctorRegisterPage />
+            }
+          />
 
-          {/* Dedicated Pharmacy Registration */}
-          <Route path="/pharmacy-register" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <PharmacyRegisterPage />
-          } />
-          <Route path="/pharmacy/register" element={
-            (user && !user?.isGuest) ? <Navigate to={getDashboardPath(user.role, user.verified)} replace /> : <PharmacyRegisterPage />
-          } />
+          <Route
+            path="/doctor/register"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <DoctorRegisterPage />
+            }
+          />
 
+          {/* Pharmacy registration */}
+          <Route
+            path="/pharmacy-register"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <PharmacyRegisterPage />
+            }
+          />
 
-          {/* Authenticated Routes wrapped in Layout */}
+          <Route
+            path="/pharmacy/register"
+            element={
+              isAuthenticated
+                ? <Navigate to={getDashboardPath(user.role, user.verified)} replace />
+                : <PharmacyRegisterPage />
+            }
+          />
+
+          {/* Application pages */}
           <Route element={<Layout />}>
-            {/* Donor Routes (guest or authenticated) */}
-            {(isDonor || (!user && false)) && (
-              <>
-                <Route path="/donor/dashboard" element={<DonorDashboard />} />
-                <Route path="/donor/donate" element={<DonateMedicine />} />
-                <Route path="/donor/donations" element={<DonationHistory />} />
-              </>
-            )}
+            {/* Donor */}
+            <Route
+              path="/donor/dashboard"
+              element={requireRole(['DONOR'], <DonorDashboard />)}
+            />
 
-            {/* Recipient Routes (guest or authenticated) */}
-            {(isRecipient || (!user && false)) && (
-              <>
-                <Route path="/recipient/dashboard" element={<RecipientDashboard />} />
-                <Route path="/recipient/medicines" element={<MedicinePool />} />
-                <Route path="/recipient/medicines/:id" element={<MedicineDetails />} />
-                <Route path="/recipient/requests" element={<MyRequests />} />
-              </>
-            )}
+            <Route
+              path="/donor/donate"
+              element={requireRole(['DONOR'], <DonateMedicine />)}
+            />
 
-            {/* Pharmacy Routes */}
-            {isPharmacy && (
-              <>
-                <Route path="/pharmacy/verification" element={<PharmacyVerification />} />
-                {user.verified && (
-                  <>
-                    <Route path="/pharmacy/dashboard" element={<PharmacyDashboard />} />
-                    <Route path="/pharmacy/pending" element={<PendingDonations />} />
-                    <Route path="/pharmacy/inventory" element={<InventoryManagement />} />
-                    <Route path="/pharmacy/requests" element={<PharmacyRequests />} />
-                    <Route path="/pharmacy/reports" element={<Reports />} />
-                  </>
-                )}
-              </>
-            )}
+            <Route
+              path="/donor/donations"
+              element={requireRole(['DONOR'], <DonationHistory />)}
+            />
 
-            {/* Doctor Routes */}
-            {isDoctor && (
-              <>
-                <Route path="/doctor/verification" element={<DoctorVerification />} />
-                {user.verified && (
-                  <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-                )}
-              </>
-            )}
+            {/* Recipient */}
+            <Route
+              path="/recipient/dashboard"
+              element={requireRole(['RECIPIENT'], <RecipientDashboard />)}
+            />
 
-            {/* Admin Routes */}
-            {isAdmin && (
-              <>
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                <Route path="/admin/users" element={<UserManagement />} />
-                <Route path="/admin/medicines" element={<AdminMedicines />} />
-                <Route path="/admin/verifications" element={<AdminVerifications />} />
-                <Route path="/admin/reports" element={<Reports />} />
-                <Route path="/admin/settings" element={<Settings />} />
-              </>
-            )}
+            <Route
+              path="/recipient/medicines"
+              element={requireRole(['RECIPIENT'], <MedicinePool />)}
+            />
 
-            {/* Shared Routes for authenticated users */}
-            {user && (
-              <>
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/notifications" element={<Notifications />} />
-              </>
-            )}
-            
+            <Route
+              path="/recipient/medicines/:id"
+              element={requireRole(['RECIPIENT'], <MedicineDetails />)}
+            />
+
+            <Route
+              path="/recipient/requests"
+              element={requireRole(['RECIPIENT'], <MyRequests />)}
+            />
+
+            {/* Pharmacy verification is accessible to pharmacy accounts
+                that have not yet been verified. */}
+            <Route
+              path="/pharmacy/verification"
+              element={
+                isPharmacy
+                  ? <PharmacyVerification />
+                  : <Navigate to="/staff-login" replace />
+              }
+            />
+
+            {/* Pharmacy dashboard */}
+            <Route
+              path="/pharmacy/dashboard"
+              element={requireVerifiedPharmacy(<PharmacyDashboard />)}
+            />
+
+            <Route
+              path="/pharmacy/pending"
+              element={requireVerifiedPharmacy(<PendingDonations />)}
+            />
+
+            <Route
+              path="/pharmacy/inventory"
+              element={requireVerifiedPharmacy(<InventoryManagement />)}
+            />
+
+            <Route
+              path="/pharmacy/requests"
+              element={requireVerifiedPharmacy(<PharmacyRequests />)}
+            />
+
+            <Route
+              path="/pharmacy/reports"
+              element={requireVerifiedPharmacy(<Reports />)}
+            />
+
+            {/* Doctor */}
+            <Route
+              path="/doctor/verification"
+              element={
+                isDoctor
+                  ? <DoctorVerification />
+                  : <Navigate to="/staff-login" replace />
+              }
+            />
+
+            <Route
+              path="/doctor/dashboard"
+              element={
+                !isDoctor
+                  ? <Navigate to="/staff-login" replace />
+                  : doctorVerified
+                    ? <DoctorDashboard />
+                    : <Navigate to="/doctor/verification" replace />
+              }
+            />
+
+            {/* Admin */}
+            <Route
+              path="/admin/dashboard"
+              element={requireRole(['ADMIN'], <AdminDashboard />)}
+            />
+
+            <Route
+              path="/admin/users"
+              element={requireRole(['ADMIN'], <UserManagement />)}
+            />
+
+            <Route
+              path="/admin/medicines"
+              element={requireRole(['ADMIN'], <AdminMedicines />)}
+            />
+
+            <Route
+              path="/admin/verifications"
+              element={requireRole(['ADMIN'], <AdminVerifications />)}
+            />
+
+            <Route
+              path="/admin/reports"
+              element={requireRole(['ADMIN'], <Reports />)}
+            />
+
+            <Route
+              path="/admin/settings"
+              element={requireRole(['ADMIN'], <Settings />)}
+            />
+
+            {/* Shared authenticated pages */}
+            <Route
+              path="/profile"
+              element={
+                isAuthenticated
+                  ? <Profile />
+                  : <Navigate to="/login" replace />
+              }
+            />
+
+            <Route
+              path="/notifications"
+              element={
+                isAuthenticated
+                  ? <Notifications />
+                  : <Navigate to="/login" replace />
+              }
+            />
           </Route>
-          {/* Not Found */}
+
+          {/* Not found */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
