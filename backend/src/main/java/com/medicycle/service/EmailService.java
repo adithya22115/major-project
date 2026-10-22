@@ -1,25 +1,38 @@
 package com.medicycle.service;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.model.Message;
+import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import com.resend.Resend;
-import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.CreateEmailOptions;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Properties;
 
 @Slf4j
 @Service
 public class EmailService {
 
-    @Autowired(required = false)
-    private JavaMailSender mailSender;
-
-    @Value("${spring.mail.username:noreply@medicycle.com}")
+    @Value("${GMAIL_FROM_EMAIL:}")
     private String fromEmail;
+
+    @Value("${GMAIL_CLIENT_ID:}")
+    private String gmailClientId;
+
+    @Value("${GMAIL_CLIENT_SECRET:}")
+    private String gmailClientSecret;
+
+    @Value("${GMAIL_REFRESH_TOKEN:}")
+    private String gmailRefreshToken;
 
     @Value("${app.base-url:http://localhost:5173}")
     private String baseUrl;
@@ -85,8 +98,9 @@ public class EmailService {
     }
 
     @Async
-    public void sendAccountVerificationStatusEmail(String to, String name, String roleName, boolean accepted,
-            String remarks) {
+    public void sendAccountVerificationStatusEmail(
+            String to, String name, String roleName, boolean accepted, String remarks) {
+
         String roleDisplay = "User";
         if ("DOCTOR".equalsIgnoreCase(roleName)) {
             roleDisplay = "Doctor";
@@ -122,7 +136,9 @@ public class EmailService {
                     name,
                     roleDisplay,
                     loginUrl,
-                    (remarks != null && !remarks.isBlank()) ? "Admin Remarks: " + remarks + "\n\n" : "");
+                    (remarks != null && !remarks.isBlank())
+                            ? "Admin Remarks: " + remarks + "\n\n"
+                            : "");
         } else {
             subject = "MediCycle " + roleDisplay + " Verification Application Status: Rejected";
             body = String.format(
@@ -146,7 +162,8 @@ public class EmailService {
                             """,
                     name,
                     roleDisplay,
-                    (remarks != null && !remarks.isBlank()) ? remarks
+                    (remarks != null && !remarks.isBlank())
+                            ? remarks
                             : "Submitted credentials could not be verified. Please ensure valid official documents are uploaded.",
                     loginUrl);
         }
@@ -155,7 +172,9 @@ public class EmailService {
     }
 
     @Async
-    public void sendDonationStatusEmail(String to, String name, String medicineName, boolean accepted, String remarks) {
+    public void sendDonationStatusEmail(
+            String to, String name, String medicineName, boolean accepted, String remarks) {
+
         String subject;
         String body;
 
@@ -176,7 +195,9 @@ public class EmailService {
                     """,
                     name,
                     medicineName,
-                    (remarks != null && !remarks.isBlank()) ? "Partner Remarks: " + remarks + "\n\n" : "");
+                    (remarks != null && !remarks.isBlank())
+                            ? "Partner Remarks: " + remarks + "\n\n"
+                            : "");
         } else {
             subject = "MediCycle Donation Status Update: " + medicineName;
             body = String.format(
@@ -197,15 +218,18 @@ public class EmailService {
                             """,
                     name,
                     medicineName,
-                    (remarks != null && !remarks.isBlank()) ? remarks : "Does not meet safety or expiry guidelines.");
+                    (remarks != null && !remarks.isBlank())
+                            ? remarks
+                            : "Does not meet safety or expiry guidelines.");
         }
 
         sendEmail(to, subject, body);
     }
 
     @Async
-    public void sendMedicineRequestStatusEmail(String to, String name, String medicineName, boolean accepted,
-            String remarks) {
+    public void sendMedicineRequestStatusEmail(
+            String to, String name, String medicineName, boolean accepted, String remarks) {
+
         String subject;
         String body;
 
@@ -227,7 +251,9 @@ public class EmailService {
                     name,
                     medicineName,
                     baseUrl,
-                    (remarks != null && !remarks.isBlank()) ? "Remarks: " + remarks + "\n\n" : "");
+                    (remarks != null && !remarks.isBlank())
+                            ? "Remarks: " + remarks + "\n\n"
+                            : "");
         } else {
             subject = "MediCycle Medicine Request Status: " + medicineName;
             body = String.format("""
@@ -248,7 +274,8 @@ public class EmailService {
                     """,
                     name,
                     medicineName,
-                    (remarks != null && !remarks.isBlank()) ? remarks
+                    (remarks != null && !remarks.isBlank())
+                            ? remarks
                             : "Prescription verification could not be completed or stock unavailable.",
                     baseUrl);
         }
@@ -257,8 +284,15 @@ public class EmailService {
     }
 
     @Async
-    public void sendAppointmentStatusEmail(String to, String patientName, String doctorName, String specialty,
-            String consultationType, String status, String notes) {
+    public void sendAppointmentStatusEmail(
+            String to,
+            String patientName,
+            String doctorName,
+            String specialty,
+            String consultationType,
+            String status,
+            String notes) {
+
         String subject;
         String body;
 
@@ -284,10 +318,18 @@ public class EmailService {
                             MediCycle Healthcare Team
                             """,
                     patientName,
-                    (doctorName != null && !doctorName.isBlank()) ? "Dr. " + doctorName : "Registered Specialist",
-                    (specialty != null && !specialty.isBlank()) ? specialty : "General Consultation",
-                    (consultationType != null && !consultationType.isBlank()) ? consultationType : "Consultation",
-                    (notes != null && !notes.isBlank()) ? "Patient Notes / Details: " + notes + "\n\n" : "",
+                    (doctorName != null && !doctorName.isBlank())
+                            ? "Dr. " + doctorName
+                            : "Registered Specialist",
+                    (specialty != null && !specialty.isBlank())
+                            ? specialty
+                            : "General Consultation",
+                    (consultationType != null && !consultationType.isBlank())
+                            ? consultationType
+                            : "Consultation",
+                    (notes != null && !notes.isBlank())
+                            ? "Patient Notes / Details: " + notes + "\n\n"
+                            : "",
                     baseUrl);
         } else if ("CANCELLED".equalsIgnoreCase(status) || "REJECTED".equalsIgnoreCase(status)) {
             subject = "MediCycle Consultation Request Status: Declined / Cancelled";
@@ -307,9 +349,15 @@ public class EmailService {
                             MediCycle Healthcare Team
                             """,
                     patientName,
-                    (specialty != null && !specialty.isBlank()) ? specialty : "Medical Consultation",
-                    (consultationType != null && !consultationType.isBlank()) ? consultationType : "Consultation",
-                    (notes != null && !notes.isBlank()) ? "Reason / Notes: " + notes + "\n\n" : "",
+                    (specialty != null && !specialty.isBlank())
+                            ? specialty
+                            : "Medical Consultation",
+                    (consultationType != null && !consultationType.isBlank())
+                            ? consultationType
+                            : "Consultation",
+                    (notes != null && !notes.isBlank())
+                            ? "Reason / Notes: " + notes + "\n\n"
+                            : "",
                     baseUrl);
         } else if ("COMPLETED".equalsIgnoreCase(status)) {
             subject = "✅ Doctor Consultation Completed - MediCycle";
@@ -324,7 +372,9 @@ public class EmailService {
                     MediCycle Healthcare Team
                     """,
                     patientName,
-                    (doctorName != null && !doctorName.isBlank()) ? "Dr. " + doctorName : "the specialist");
+                    (doctorName != null && !doctorName.isBlank())
+                            ? "Dr. " + doctorName
+                            : "the specialist");
         } else {
             return;
         }
@@ -333,29 +383,63 @@ public class EmailService {
     }
 
     private void sendEmail(String to, String subject, String text) {
-        String apiKey = System.getenv("RESEND_API_KEY");
+        if (to == null || to.isBlank()) {
+            log.error("Email recipient is empty. Email was not sent.");
+            return;
+        }
 
-        if (apiKey == null || apiKey.isBlank()) {
-            log.error("RESEND_API_KEY is missing. Email was not sent.");
+        if (isBlank(fromEmail)
+                || isBlank(gmailClientId)
+                || isBlank(gmailClientSecret)
+                || isBlank(gmailRefreshToken)) {
+            log.error("Gmail OAuth configuration is incomplete. Email was not sent.");
             return;
         }
 
         try {
-            Resend resend = new Resend(apiKey);
+            var transport = GoogleNetHttpTransport.newTrustedTransport();
+            var jsonFactory = GsonFactory.getDefaultInstance();
 
-            CreateEmailOptions params = CreateEmailOptions.builder()
-                    .from("MediCycle <onboarding@resend.dev>")
-                    .to("delivered@resend.dev")
-                    .subject(subject)
-                    .text(text)
+            GoogleCredential credential = new GoogleCredential.Builder()
+                    .setTransport(transport)
+                    .setJsonFactory(jsonFactory)
+                    .setClientSecrets(gmailClientId, gmailClientSecret)
+                    .build()
+                    .setRefreshToken(gmailRefreshToken);
+
+            Gmail gmail = new Gmail.Builder(transport, jsonFactory, credential)
+                    .setApplicationName("MediCycle")
                     .build();
 
-            var response = resend.emails().send(params);
-            log.info("Resend accepted email. Response: {}", response);
+            MimeMessage email = new MimeMessage(Session.getInstance(new Properties()));
+            email.setFrom(new InternetAddress(fromEmail));
+            email.setRecipient(jakarta.mail.Message.RecipientType.TO, new InternetAddress(to));
+            email.setSubject(subject, StandardCharsets.UTF_8.name());
+            email.setText(text, StandardCharsets.UTF_8.name());
+            email.saveChanges();
 
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            email.writeTo(output);
+
+            String encodedEmail = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(output.toByteArray());
+
+            Message gmailMessage = new Message().setRaw(encodedEmail);
+
+            gmail.users()
+                    .messages()
+                    .send("me", gmailMessage)
+                    .execute();
+
+            log.info("Gmail API accepted email for recipient: {}", to);
         } catch (Exception e) {
-            log.error("Resend email failed: {}", e.getMessage());
+            // Avoid logging OAuth tokens or message contents.
+            log.error("Gmail API email sending failed: {}", e.getMessage());
         }
     }
 
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
 }
